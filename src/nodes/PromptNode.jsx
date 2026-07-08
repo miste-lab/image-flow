@@ -17,7 +17,21 @@ export default function PromptNode({ id, data }) {
         value={data.text}
         onChange={(e) => updateNodeData(id, { text: e.target.value })}
       />
-      <Handle type="source" position={Position.Right} />
+      {/* 右上固定・[T]アイコンの出力ハンドル */}
+      <Handle type="source" position={Position.Right} className="io-handle io-handle-prompt">
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        >
+          <path d="M6 6h12" />
+          <path d="M12 6v13" />
+        </svg>
+      </Handle>
       <ResizeGrip minWidth={220} minHeight={140} />
     </div>
   );

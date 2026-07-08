@@ -64,7 +64,23 @@ export default function ImageInputNode({ id, data }) {
         onChange={(e) => onFile(e.target.files?.[0])}
       />
 
-      <Handle type="source" position={Position.Right} />
+      {/* 右上固定・画像アイコンの出力ハンドル */}
+      <Handle type="source" position={Position.Right} className="io-handle io-handle-image">
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="M21 15l-5-5-9 9" />
+        </svg>
+      </Handle>
       <ResizeGrip minWidth={180} minHeight={160} />
     </div>
   );

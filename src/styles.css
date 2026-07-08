@@ -536,6 +536,32 @@ html, body, #root {
   margin: 4px 6px;
 }
 
+/* ---------- io handle (アイコン付き・右上固定の接続ポート) ----------
+   通常のハンドルは高さ50%に自動配置されるため、リサイズすると
+   位置がずれて見える。プロンプト/参照画像は右上に固定する */
+.react-flow__handle.io-handle {
+  width: 26px;
+  height: 26px;
+  top: 32px;               /* ヘッダーの高さに合わせて右上固定 */
+  right: -13px;            /* ふちに半分乗るように */
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: border-color 0.12s, color 0.12s;
+}
+.react-flow__handle.io-handle svg { pointer-events: none; }
+.react-flow__handle.io-handle:hover,
+.react-flow__handle.io-handle.connectionindicator:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.io-handle-prompt { border-radius: 50%; }
+.io-handle-image { border-radius: 8px; }
+
 /* ---------- resize grip (ノード右下のつまみ) ---------- */
 .resize-grip {
   position: absolute;
