@@ -298,6 +298,31 @@ html, body, #root {
 /* ---------- generate node ---------- */
 .node-generate { width: 320px; }
 
+/* 接続中の参照画像を示すタグチップ */
+.ref-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+.ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #6fdc8c;
+  background: rgba(111, 220, 140, 0.08);
+  border: 1px solid rgba(111, 220, 140, 0.3);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.ref-tag {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  color: rgba(111, 220, 140, 0.75);
+}
+
 .result-area {
   margin: 10px;
   border-radius: 8px;

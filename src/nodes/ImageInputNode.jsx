@@ -17,7 +17,7 @@ export default function ImageInputNode({ id, data }) {
     <div className="node node-image">
       <div className="node-header">
         <span className="node-dot dot-image" />
-        参照画像
+        参照画像 #{(String(id).match(/(\d+)$/) || [])[1] || "?"}
       </div>
 
       {data.image ? (

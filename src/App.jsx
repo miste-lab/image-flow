@@ -40,7 +40,7 @@ const initialNodes = [
     id: "generate-1",
     type: "generate",
     position: { x: 460, y: 100 },
-    data: { size: "auto", quality: "auto", count: 1, results: [], loading: false, error: null },
+    data: { size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
   },
 ];
 
@@ -66,7 +66,7 @@ function Flow() {
       const defaults = {
         prompt: { text: "" },
         imageInput: { image: null, fileName: null },
-        generate: { size: "auto", quality: "auto", count: 1, results: [], loading: false, error: null },
+        generate: { size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
       };
       // 画面中央あたりに少しずらしながら配置
       const offset = (idCounter % 5) * 32;
