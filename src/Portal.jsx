@@ -1,14 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
 import KeyPanel from "./nodes/KeyPanel.jsx";
 import SettingsPanel from "./nodes/SettingsPanel.jsx";
-import { listWorkspaces, putWorkspace, deleteWorkspace } from "./db.js";
+import {
+  listWorkspaces,
+  putWorkspace,
+  deleteWorkspace,
+  listHistory,
+  getHistoryImage,
+  deleteHistory,
+  estimateStorage,
+} from "./db.js";
 import { newWorkspace } from "./defaults.js";
 
 // サムネイル描画用のノード概算サイズ (実物のおおよその縦横)
 const THUMB_SIZE = {
   prompt: [280, 170],
   imageInput: [230, 210],
-  generate: [320, 330],
+  generate: [320, 260],
+  jobGrid: [340, 400],
   memo: [260, 190],
 };
 
@@ -87,6 +96,110 @@ const relTime = (t) => {
   if (days === 1) return "昨日";
   return `${days} 日前`;
 };
+
+// バイト数を読みやすい単位にする (123456789 → "118 MB")
+const fmtBytes = (n) => {
+  if (n == null) return "?";
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(n < 100 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`;
+};
+
+// 生成履歴のサムネイル一覧 + ストレージ使用量
+function HistorySection() {
+  const [items, setItems] = useState(null);
+  const [usage, setUsage] = useState(null);
+
+  const refresh = useCallback(() => {
+    listHistory().then((h) =>
+      setItems((h || []).sort((a, b) => (b.ts || 0) - (a.ts || 0)))
+    );
+    estimateStorage().then(setUsage);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener("history-changed", refresh);
+    return () => window.removeEventListener("history-changed", refresh);
+  }, [refresh]);
+
+  // フル解像度を取り出してダウンロード
+  const save = async (h) => {
+    const full = (await getHistoryImage(h.id)) || h.thumb;
+    const a = document.createElement("a");
+    a.href = full;
+    a.download = `image-flow-${h.ts}.png`;
+    a.click();
+  };
+
+  // クリックでフル解像度を新しいタブで開く
+  const openFull = async (h) => {
+    const full = (await getHistoryImage(h.id)) || h.thumb;
+    const blob = await (await fetch(full)).blob();
+    window.open(URL.createObjectURL(blob), "_blank");
+  };
+
+  const remove = async (h) => {
+    if (!window.confirm("この画像を履歴から削除しますか？")) return;
+    await deleteHistory(h.id);
+  };
+
+  const pct =
+    usage?.usage && usage?.quota ? Math.min(100, (usage.usage / usage.quota) * 100) : null;
+
+  return (
+    <section className="history-section">
+      <div className="portal-head-row">
+        <h1 className="portal-title">
+          履歴
+          {items && <span className="portal-count">({items.length})</span>}
+        </h1>
+        {usage && (
+          <div className="storage-meter" title="このサイトを含むブラウザ全体の保存領域の使用状況">
+            <span className="storage-text">
+              使用容量 {fmtBytes(usage.usage)} / {fmtBytes(usage.quota)}
+            </span>
+            {pct != null && (
+              <span className="storage-bar">
+                <span className="storage-bar-fill" style={{ width: `${Math.max(1, pct)}%` }} />
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {items === null ? null : items.length === 0 ? (
+        <div className="portal-empty">
+          まだ生成履歴がありません。
+          <br />
+          画像を生成すると、ここにサムネイルが並びます。
+        </div>
+      ) : (
+        <div className="history-grid">
+          {items.map((h) => (
+            <div
+              className="history-cell"
+              key={h.id}
+              title={`${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
+            >
+              <button className="history-open" onClick={() => openFull(h)}>
+                <img className="history-img" src={h.thumb} alt="生成画像" loading="lazy" />
+              </button>
+              <div className="history-actions">
+                <button className="ws-act" title="この画像を保存" onClick={() => save(h)}>
+                  ↓
+                </button>
+                <button className="ws-act danger" title="履歴から削除" onClick={() => remove(h)}>
+                  🗑
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Portal({ onOpen }) {
   const [list, setList] = useState(null);
@@ -189,6 +302,8 @@ export default function Portal({ onOpen }) {
             ))}
           </div>
         )}
+
+        <HistorySection />
       </main>
     </div>
   );

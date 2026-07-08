@@ -14,6 +14,7 @@ import {
 import PromptNode from "./nodes/PromptNode.jsx";
 import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
+import JobGridNode from "./nodes/JobGridNode.jsx";
 import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
 import SettingsPanel from "./nodes/SettingsPanel.jsx";
@@ -26,6 +27,7 @@ const nodeTypes = {
   prompt: PromptNode,
   imageInput: ImageInputNode,
   generate: GenerateNode,
+  jobGrid: JobGridNode,
   memo: MemoNode,
 };
 
@@ -40,6 +42,7 @@ const CONTEXT_ITEMS = [
   { type: "prompt", label: "プロンプトを追加", icon: "text" },
   { type: "imageInput", label: "参照画像を追加", icon: "image" },
   { type: "generate", label: "画像生成ツールを追加", icon: "spark" },
+  { type: "jobGrid", label: "ジョブグリッドを追加", icon: "grid" },
   { type: "memo", label: "付箋メモを追加", icon: "note", divider: true },
 ];
 
@@ -70,6 +73,14 @@ function MenuIcon({ name }) {
       <>
         <path d="M5 4h14v11l-5 5H5z" />
         <path d="M14 20v-5h5" />
+      </>
+    ),
+    grid: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </>
     ),
   };
@@ -107,9 +118,17 @@ function Flow({ workspaceId, onBack }) {
         return;
       }
       // 旧データにはサイズがないので、リサイズ対応ノードに初期サイズを補う
-      const migrated = (ws.nodes || []).map((n) =>
-        n.width == null && INIT_SIZE[n.type] ? { ...n, ...INIT_SIZE[n.type] } : n
-      );
+      const migrated = (ws.nodes || []).map((n) => {
+        let node = n.width == null && INIT_SIZE[n.type] ? { ...n, ...INIT_SIZE[n.type] } : n;
+        // 旧データの生成ノードには uid(履歴用の固有ID)とプロンプト欄がないので補う
+        if (node.type === "generate" && !node.data?.uid) {
+          node = {
+            ...node,
+            data: { ...node.data, uid: crypto.randomUUID(), prompt: node.data?.prompt ?? "" },
+          };
+        }
+        return node;
+      });
       // 旧エッジは targetHandle がないので、接続元の種類で振り分ける
       const byId = Object.fromEntries(migrated.map((n) => [n.id, n]));
       const migratedEdges = (ws.edges || []).map((e) => {
@@ -168,7 +187,12 @@ function Flow({ workspaceId, onBack }) {
       if (!fromNode || connectionState.fromHandle?.type !== "source") return;
       const { clientX, clientY } =
         "changedTouches" in event ? event.changedTouches[0] : event;
-      setMenu({ kind: "connect", sourceId: fromNode.id, ...menuPosition(clientX, clientY) });
+      setMenu({
+        kind: "connect",
+        sourceId: fromNode.id,
+        sourceType: fromNode.type,
+        ...menuPosition(clientX, clientY),
+      });
     },
     [menuPosition]
   );
@@ -207,15 +231,17 @@ function Flow({ workspaceId, onBack }) {
         },
       ]);
       if (sourceId) {
-        // 接続元の種類に応じて生成ノードの入力口を選ぶ
+        // 追加するノードと接続元の種類に応じて入力口を選ぶ
         const srcType = nodes.find((n) => n.id === sourceId)?.type;
+        const targetHandle =
+          type === "jobGrid" ? "jobs" : srcType === "prompt" ? "prompt" : "image";
         setEdges((eds) => [
           ...eds,
           {
             id: `e-${sourceId}-${newId}`,
             source: sourceId,
             target: newId,
-            targetHandle: srcType === "prompt" ? "prompt" : "image",
+            targetHandle,
             type: "deletable",
           },
         ]);
@@ -389,13 +415,25 @@ function Flow({ workspaceId, onBack }) {
           style={{ left: menu.x, top: menu.y }}
         >
           {menu.kind === "connect" ? (
-            <button
-              className="connect-menu-btn"
-              onClick={() => addNodeAt("generate", menu.flow, menu.sourceId)}
-            >
-              <MenuIcon name="spark" />
-              画像生成ツールを追加
-            </button>
+            <>
+              <button
+                className="connect-menu-btn"
+                onClick={() => addNodeAt("generate", menu.flow, menu.sourceId)}
+              >
+                <MenuIcon name="spark" />
+                画像生成ツールを追加
+              </button>
+              {/* 生成ノードの出力からはジョブグリッドも作れる */}
+              {menu.sourceType === "generate" && (
+                <button
+                  className="connect-menu-btn"
+                  onClick={() => addNodeAt("jobGrid", menu.flow, menu.sourceId)}
+                >
+                  <MenuIcon name="grid" />
+                  ジョブグリッドを追加
+                </button>
+              )}
+            </>
           ) : (
             CONTEXT_ITEMS.map((item) => (
               <React.Fragment key={item.type}>

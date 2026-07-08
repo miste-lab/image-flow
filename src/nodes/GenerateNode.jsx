@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import RatioSelect from "./RatioSelect.jsx";
 import { generateImages } from "../api.js";
+import { addHistory } from "../db.js";
 
 const QUALITIES = [
   { value: "auto", label: "品質: 自動" },
@@ -35,7 +36,6 @@ export default function GenerateNode({ id, data }) {
     [getNode]
   );
   const count = data.count ?? 1;
-  const results = data.results ?? [];
   const resolution = data.resolution ?? "auto";
 
   // 接続中の画像ソースをタグ付きで列挙 (表示用)。
@@ -86,8 +86,10 @@ export default function GenerateNode({ id, data }) {
         images.push(...src.data.results);
       }
     }
+    // このノード自身のプロンプト欄も結合する (接続分のあとに追加)
+    if (data.prompt?.trim()) prompts.push(data.prompt.trim());
     return { prompt: prompts.join("\n"), images };
-  }, [id, getNodes, getEdges]);
+  }, [id, data.prompt, getNodes, getEdges]);
 
   const run = useCallback(async () => {
     const { prompt, images } = collectInputs();
@@ -111,11 +113,14 @@ export default function GenerateNode({ id, data }) {
         quality: data.quality,
         n: count,
       });
+      // results は下流ノードへのチェーン用に保持する (ノード内には表示しない)
       updateNodeData(id, { results: list, loading: false, error: null });
+      // 履歴に記録 → つながっているジョブグリッドと、ポータルの履歴一覧に反映される
+      addHistory({ uid: data.uid, prompt, images: list });
     } catch (err) {
       updateNodeData(id, { loading: false, error: err.message });
     }
-  }, [id, data.size, data.quality, resolution, count, collectInputs, updateNodeData]);
+  }, [id, data.uid, data.size, data.quality, resolution, count, collectInputs, updateNodeData]);
 
   const setCount = (delta) => {
     updateNodeData(id, { count: Math.min(4, Math.max(1, count + delta)) });
@@ -167,36 +172,20 @@ export default function GenerateNode({ id, data }) {
         </div>
       )}
 
-      <div className="result-area">
-        {data.loading ? (
-          <div className="result-placeholder">
-            <span className="spinner" />
-            生成中… (最大2分)
-          </div>
-        ) : results.length > 0 ? (
-          <div className={`result-grid ${results.length > 1 ? "multi" : ""}`}>
-            {results.map((img, i) => (
-              <div className="result-cell" key={i}>
-                <img className="result-image" src={img} alt={`generated ${i + 1}`} />
-                <a
-                  className="cell-save nodrag"
-                  href={img}
-                  download={`image-flow-${id}-${i + 1}.png`}
-                  title="この画像を保存"
-                >
-                  ↓
-                </a>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="result-placeholder">
-            プロンプトを接続して
-            <br />
-            「生成」を押してください
-          </div>
-        )}
-      </div>
+      {/* このノード自身のプロンプト欄。プロンプトノードの内容と改行で結合される */}
+      <textarea
+        className="nodrag nowheel gen-prompt-textarea"
+        placeholder={"プロンプトを入力…\n(プロンプトノードをつないだ場合は内容が結合されます)"}
+        value={data.prompt ?? ""}
+        onChange={(e) => updateNodeData(id, { prompt: e.target.value })}
+      />
+
+      {data.loading && (
+        <div className="gen-loading">
+          <span className="spinner" />
+          生成中… (最大2分)。結果はジョブグリッドと履歴に届きます
+        </div>
+      )}
 
       {data.error && <div className="error-box">{data.error}</div>}
 

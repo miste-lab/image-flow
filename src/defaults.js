@@ -6,7 +6,10 @@ export const makeDefaults = (type) =>
     prompt: { text: "" },
     imageInput: { image: null, fileName: null },
     memo: { text: "" },
-    generate: { size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
+    // uid はノード固有のID。履歴とジョブグリッドが「どの生成ノードの結果か」を
+    // 判別するのに使う (表示用IDの generate-1 などは番号が再利用されるため不可)
+    generate: { uid: crypto.randomUUID(), prompt: "", size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
+    jobGrid: {},
   })[type];
 
 // リサイズ可能なノードの初期サイズ (node.width / node.height に入れる)
@@ -14,6 +17,7 @@ export const INIT_SIZE = {
   prompt: { width: 280, height: 190 },
   imageInput: { width: 230, height: 230 },
   memo: { width: 260, height: 190 },
+  jobGrid: { width: 340, height: 400 },
 };
 
 // 空いている最小番号でIDを作る (ノードを消すとその番号が再利用される)

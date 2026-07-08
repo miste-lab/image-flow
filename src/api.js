@@ -51,7 +51,7 @@ export async function generateImages({ prompt, images = [], size, quality, n = 1
     throw new Error("APIキーが未設定です。右上の「APIキー」から設定してください。");
   }
   if (!prompt || !prompt.trim()) {
-    throw new Error("プロンプトが空です。プロンプトノードを接続して内容を入力してください。");
+    throw new Error("プロンプトが空です。ノード内の入力欄に書くか、プロンプトノードを接続してください。");
   }
 
   let response;
