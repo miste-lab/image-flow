@@ -53,9 +53,12 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   - 品質 auto/low/medium/high、枚数1〜3 (ステッパー。2026-07-09に上限4→3。
     旧データに4が残っていても表示時に丸める)
 - **videoGen** (VideoGenNode): 動画生成 (2026-07-09追加、Seedance 2.0 / fal.ai経由)。
-  - 入力ハンドルは3つ: プロンプト / 開始画像 (id="image") / 終了画像 (id="endImage")。
-    終了画像は開始画像とセットで image-to-video の end_image_url に渡す
-    (開始なしで終了だけ・Miniで終了画像はエラーメッセージを出す)
+  - 入力ハンドルは4つ:
+    左下 = プロンプト(緑) / 参照画像(紫・id="image"・複数可) ← 画像生成と同じ配置。
+    左上 = 開始画像(青・id="startImage") / 終了画像(青・id="endImage")
+  - 開始画像 → i2v の image_url、終了画像 → end_image_url (開始とセット必須)。
+    参照画像 → 1枚ならi2v、2枚以上はreference-to-video。
+    開始と参照の同時使用・Mini+終了画像は日本語エラーで案内
   - 出力ハンドルあり: ジョブグリッド (生成結果が並ぶ) やアップスケールへつなぐ。
     生成実行時にジョブグリッド未接続なら自動作成 (generateと同じ)
   - 本数1〜3 (ステッパー)。複数本は並列でキューに投げ、「(1/3本 完了) 生成中…」とまとめ表示。
@@ -71,7 +74,7 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   - キューのステータスは IN_QUEUE=「順番待ち (n番目)」/ IN_PROGRESS=「生成中…」で表示し分け
     (fal.js queueStatusLabel)。経過時間も表示
   - コストが画像より高い旨の注記をノード内に常時表示
-- **upscale** (UpscaleNode): 動画アップスケール (2026-07-09追加、fal.ai経由)。
+- **upscale** (UpscaleNode): 表示名「動画アップスケール」(2026-07-09追加、fal.ai経由)。
   - 入力: videoGen の出力のみ (最初の1本を使う)。出力ハンドルはない
   - モデル切替: Topaz Video AI (fal-ai/topaz/upscale/video) /
     SeedVR2 (fal-ai/seedvr/upscale/video、AI生成動画向け・$0.001/百万px)
@@ -212,3 +215,18 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
       fal-ai/seedvr/upscale/video で確認済み (target_resolution直接指定可・fps指定なし)
   (7) キューステータスの表示し分け:「順番待ち (n番目)」/「生成中…」
 - 実際のfal課金を伴う生成・アップスケールは未検証 (ユーザーのキーでの実測待ち)
+
+### 2026-07-09 (6回目): コスト概算の日本円表示ほか
+- 比率選択のドロップダウンを上向き→下向きに変更 (.ratio-menu の bottom→top)
+- アップスケールノードの表示名を「動画アップスケール」に
+- 動画生成の入力を再編: プロンプト/参照画像は左下 (画像生成と同じ)、
+  開始画像/終了画像は左上・青系ハンドル (io-handle-frame) に分離
+- **コスト概算 (src/pricing.js)**: 単価テーブル・見積もり計算・為替を1ファイルに集約。
+  料金改定はこのファイルの数値だけ直す
+  - 各生成系ノードの生成ボタン上に「予想コスト 約¥○○」をリアルタイム表示。
+    ツールチップに「実際の請求はUSD建て・為替で変動」とUSD額を明示
+  - USD/JPYは Frankfurter API (api.frankfurter.dev/v1/latest) から1日1回取得して
+    localStorageにキャッシュ ("usd_jpy_rate")。失敗時は キャッシュ→固定155円
+  - 想定: 長さ「自動」=5秒 / gpt-image-2は解像度倍率の2乗で換算 /
+    Seedance 480p standard/fastは公表値がなく720p×面積比の推定 /
+    アップスケールは入力動画の実際の長さをメタデータから取得して計算

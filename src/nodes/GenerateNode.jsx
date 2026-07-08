@@ -6,6 +6,7 @@ import { generateImages } from "../api.js";
 import { generateImagesSeedream } from "../fal.js";
 import { addHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
+import { estimateImageUsd, useUsdJpy, fmtJpy } from "../pricing.js";
 
 // 画像モデルの選択肢 (単価はドロップダウンに小さく表示される概算)
 const IMAGE_MODELS = [
@@ -51,6 +52,15 @@ export default function GenerateNode({ id, data }) {
   const count = Math.min(data.count ?? 1, MAX_COUNT);
   const resolution = data.resolution ?? "auto";
   const model = data.model ?? "gpt-image-2";
+
+  // 実行前のコスト概算 (設定が変わるたびに再計算)
+  const rate = useUsdJpy();
+  const estUsd = estimateImageUsd({
+    model,
+    quality: data.quality ?? "auto",
+    resolution,
+    count,
+  });
 
   // 接続中の画像ソースをタグ付きで列挙 (表示用)。
   // collectInputs と同じエッジ順で数えるので @img:n が実際の送信順と一致する
@@ -274,6 +284,13 @@ export default function GenerateNode({ id, data }) {
             <option key={r.value} value={r.value}>{r.label}</option>
           ))}
         </select>
+      </div>
+
+      <div
+        className="video-cost-note"
+        title={`概算です。実際の請求はUSD建て (約$${estUsd.toFixed(3)}) で、為替レートにより変動します`}
+      >
+        予想コスト <span className="cost-yen">{fmtJpy(estUsd, rate)}</span>
       </div>
 
       <div className="action-row nodrag">

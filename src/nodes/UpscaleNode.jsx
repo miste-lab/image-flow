@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ModelSelect from "./ModelSelect.jsx";
-import { upscaleVideo, queueStatusLabel } from "../fal.js";
+import { upscaleVideo, queueStatusLabel, probeVideoMeta } from "../fal.js";
+import { estimateUpscaleUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
 
 // アップスケールモデルの選択肢
 const UPSCALE_MODELS = [
@@ -43,16 +44,39 @@ export default function UpscaleNode({ id, data }) {
   }, [data.loading]);
   const fmtElapsed = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
 
-  // 接続中の動画生成ノードに動画があるか (表示用)
-  const sourceReady = useStore((s) => {
+  // 接続中の動画生成ノードの動画URL (表示・概算用)
+  const sourceUrl = useStore((s) => {
     for (const e of s.edges) {
       if (e.target !== id) continue;
       const src = s.nodeLookup.get(e.source);
       if (src?.type !== "videoGen") continue;
       const urls = src.data?.videoUrls ?? (src.data?.videoUrl ? [src.data.videoUrl] : []);
-      if (urls.length > 0) return true;
+      if (urls.length > 0) return urls[0];
     }
-    return false;
+    return null;
+  });
+  const sourceReady = !!sourceUrl;
+
+  // 入力動画の長さをメタデータから調べてコスト概算に使う
+  const [srcMeta, setSrcMeta] = useState(null);
+  useEffect(() => {
+    if (!sourceUrl) {
+      setSrcMeta(null);
+      return;
+    }
+    let alive = true;
+    probeVideoMeta(sourceUrl).then((m) => alive && setSrcMeta(m));
+    return () => {
+      alive = false;
+    };
+  }, [sourceUrl]);
+
+  const rate = useUsdJpy();
+  const estUsd = estimateUpscaleUsd({
+    model,
+    resolution: data.resolution ?? "1080p",
+    fps: data.fps ?? "30",
+    durationSec: srcMeta?.duration || 0,
   });
 
   // つないだ動画生成ノードから入力動画を取る (最初の1本)
@@ -113,7 +137,7 @@ export default function UpscaleNode({ id, data }) {
 
       <div className="node-header">
         <span className="node-dot dot-upscale" />
-        アップスケール #{idNum(id)}
+        動画アップスケール #{idNum(id)}
         <ModelSelect
           value={model}
           options={UPSCALE_MODELS}
@@ -173,9 +197,12 @@ export default function UpscaleNode({ id, data }) {
         </select>
       </div>
 
-      <div className="video-cost-note">
-        ※ Topaz概算: 〜720p $0.01/秒・〜1080p $0.02/秒・4K $0.08/秒 (60fps指定で約2倍)。
-        SeedVR2は出力サイズ課金 ($0.001/百万px)
+      <div
+        className="video-cost-note"
+        title={`概算です。実際の請求はUSD建て (約$${estUsd.toFixed(2)}) で、為替レートにより変動します。${srcMeta?.duration ? `入力動画 約${Math.round(srcMeta.duration)}秒で計算` : `入力動画が未生成のため${VIDEO_AUTO_DURATION}秒として計算`}`}
+      >
+        予想コスト <span className="cost-yen">{fmtJpy(estUsd, rate)}</span>
+        {model === "topaz" && (data.fps ?? "30") === "60" && " (60fpsで約2倍)"}
       </div>
 
       <div className="action-row nodrag">

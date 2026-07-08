@@ -112,10 +112,12 @@ export async function generateImagesSeedream({ prompt, images = [], size, resolu
 
 // model / prompt / images / resolution / duration / aspectRatio / audio → 動画URL。
 // 進捗は onStatus で通知される
+// images = 参照画像 (雰囲気やキャラを参照)。startImage/endImage = 最初/最後のフレーム指定
 export async function generateVideoSeedance({
   model = "standard",
   prompt,
   images = [],
+  startImage = null,
   endImage = null,
   resolution = "720p",
   duration = "auto",
@@ -126,17 +128,21 @@ export async function generateVideoSeedance({
   if (!prompt || !prompt.trim()) {
     throw new Error("プロンプトが空です。ノード内の入力欄に書くか、プロンプトノードを接続してください。");
   }
-  if (endImage && images.length === 0) {
+  if (endImage && !startImage) {
     throw new Error("終了画像を使うには開始画像もつないでください。");
+  }
+  if (startImage && images.length > 0) {
+    throw new Error("開始画像と参照画像は同時に使えません。どちらか一方をつないでください。");
   }
   if (endImage && model === "mini") {
     throw new Error("Seedance 2.0 Mini は終了画像に対応していません。standard か fast を選んでください。");
   }
 
+  const hasAnyImage = !!startImage || images.length > 0;
   const input = { prompt, resolution, generate_audio: audio };
   if (duration && duration !== "auto") input.duration = String(duration);
   // 画像入力があるときは画像の比率が優先されるので aspect_ratio は送らない
-  if (aspectRatio && aspectRatio !== "auto" && images.length === 0) {
+  if (aspectRatio && aspectRatio !== "auto" && !hasAnyImage) {
     input.aspect_ratio = aspectRatio;
   }
 
@@ -144,17 +150,21 @@ export async function generateVideoSeedance({
   let endpoint;
   if (model === "mini") {
     endpoint = "bytedance/seedance-2.0/mini/reference-to-video";
-    if (images.length > 0) input.image_urls = images.slice(0, 9);
+    const refs = startImage ? [startImage] : images;
+    if (refs.length > 0) input.image_urls = refs.slice(0, 9);
   } else {
     const base =
       model === "fast" ? "bytedance/seedance-2.0/fast" : "bytedance/seedance-2.0";
-    if (images.length === 0) {
+    if (startImage) {
+      // 開始(+終了)フレーム指定 → image-to-video
+      endpoint = `${base}/image-to-video`;
+      input.image_url = startImage;
+      if (endImage) input.end_image_url = endImage;
+    } else if (images.length === 0) {
       endpoint = `${base}/text-to-video`;
-    } else if (images.length === 1 || endImage) {
-      // 終了画像は image-to-video でのみ指定できる (開始画像は先頭の1枚)
+    } else if (images.length === 1) {
       endpoint = `${base}/image-to-video`;
       input.image_url = images[0];
-      if (endImage) input.end_image_url = endImage;
     } else {
       endpoint = `${base}/reference-to-video`;
       input.image_urls = images.slice(0, 9);
@@ -169,14 +179,15 @@ export async function generateVideoSeedance({
 
 /* ---------- 動画アップスケール: Topaz / SeedVR2 ---------- */
 
-// 動画のメタデータから縦解像度を調べる (Topazの倍率計算用)
-function probeVideoHeight(url) {
+// 動画のメタデータ (縦解像度・長さ) を調べる。倍率計算とコスト概算に使う
+export function probeVideoMeta(url) {
   return new Promise((resolve) => {
     const v = document.createElement("video");
     v.preload = "metadata";
     v.muted = true;
-    v.onloadedmetadata = () => resolve(v.videoHeight || 0);
-    v.onerror = () => resolve(0);
+    v.onloadedmetadata = () =>
+      resolve({ height: v.videoHeight || 0, duration: v.duration || 0 });
+    v.onerror = () => resolve({ height: 0, duration: 0 });
     v.src = url;
   });
 }
@@ -206,7 +217,7 @@ export async function upscaleVideo({
     // SeedVR2 にフレームレート指定はない (fpsは元動画のまま)
   } else {
     endpoint = "fal-ai/topaz/upscale/video";
-    const srcH = await probeVideoHeight(videoUrl);
+    const { height: srcH } = await probeVideoMeta(videoUrl);
     const targetH = { "1080p": 1080, "1440p": 1440, "2160p": 2160 }[resolution] ?? 1080;
     const factor = Math.min(8, Math.max(1, targetH / (srcH || 720)));
     input = {

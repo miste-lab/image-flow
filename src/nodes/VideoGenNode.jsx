@@ -4,6 +4,7 @@ import ModelSelect from "./ModelSelect.jsx";
 import { generateVideoSeedance, queueStatusLabel } from "../fal.js";
 import { addVideoHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
+import { estimateVideoUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
 
 // 動画モデルの選択肢 (単価はドロップダウンに小さく表示される概算・720p時)
 const VIDEO_MODELS = [
@@ -48,6 +49,15 @@ export default function VideoGenNode({ id, data }) {
   const count = Math.min(data.count ?? 1, MAX_COUNT);
   const videoUrls = data.videoUrls ?? (data.videoUrl ? [data.videoUrl] : []);
 
+  // 実行前のコスト概算 (設定が変わるたびに再計算)
+  const rate = useUsdJpy();
+  const estUsd = estimateVideoUsd({
+    model,
+    resolution: data.resolution ?? "720p",
+    duration: data.duration ?? "auto",
+    count,
+  });
+
   // 生成中の経過時間表示 (0.5秒刻みで更新)
   const startedAtRef = useRef(null);
   const [elapsed, setElapsed] = useState(0);
@@ -67,10 +77,11 @@ export default function VideoGenNode({ id, data }) {
 
   const fmtElapsed = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
 
-  // 接続中の開始/終了画像の数 (表示用)
+  // 接続中の参照/開始/終了画像 (表示用)
   const linked = JSON.parse(
     useStore((s) => {
-      let startCount = 0;
+      let refCount = 0;
+      let hasStart = false;
       let hasEnd = false;
       for (const e of s.edges) {
         if (e.target !== id) continue;
@@ -80,11 +91,11 @@ export default function VideoGenNode({ id, data }) {
           (src.type === "imageInput" && src.data?.image) ||
           (src.type === "generate" && src.data?.results?.length);
         if (!isImg) continue;
-        const n = src.type === "generate" ? src.data.results.length : 1;
-        if (e.targetHandle === "endImage") hasEnd = true;
-        else startCount += n;
+        if (e.targetHandle === "startImage") hasStart = true;
+        else if (e.targetHandle === "endImage") hasEnd = true;
+        else refCount += src.type === "generate" ? src.data.results.length : 1;
       }
-      return JSON.stringify({ startCount, hasEnd });
+      return JSON.stringify({ refCount, hasStart, hasEnd });
     })
   );
 
@@ -94,23 +105,29 @@ export default function VideoGenNode({ id, data }) {
     const incoming = edges.filter((e) => e.target === id);
 
     const prompts = [];
-    const images = []; // 開始画像 (複数可)
+    const images = []; // 参照画像 (複数可)
+    let startImage = null;
     let endImage = null;
     for (const edge of incoming) {
       const src = nodes.find((n) => n.id === edge.source);
       if (!src) continue;
       if (src.type === "prompt" && src.data.text?.trim()) {
         prompts.push(src.data.text.trim());
-      } else if (src.type === "imageInput" && src.data.image) {
-        if (edge.targetHandle === "endImage") endImage = src.data.image;
-        else images.push(src.data.image);
-      } else if (src.type === "generate" && src.data.results?.length) {
-        if (edge.targetHandle === "endImage") endImage = src.data.results[0];
-        else images.push(...src.data.results);
+        continue;
       }
+      // 画像系: つないだハンドルで 参照/開始/終了 を振り分ける
+      const first =
+        src.type === "imageInput" ? src.data.image
+        : src.type === "generate" && src.data.results?.length ? src.data.results[0]
+        : null;
+      if (!first) continue;
+      if (edge.targetHandle === "startImage") startImage = first;
+      else if (edge.targetHandle === "endImage") endImage = first;
+      else if (src.type === "generate") images.push(...src.data.results);
+      else images.push(first);
     }
     if (data.prompt?.trim()) prompts.push(data.prompt.trim());
-    return { prompt: prompts.join("\n"), images, endImage };
+    return { prompt: prompts.join("\n"), images, startImage, endImage };
   }, [id, data.prompt, getNodes, getEdges]);
 
   // ジョブグリッドが1つもつながっていなければ、右隣に自動作成してつなぐ
@@ -141,7 +158,7 @@ export default function VideoGenNode({ id, data }) {
   }, [id, getEdges, getNode, getNodes, addNodes, addEdges]);
 
   const run = useCallback(async () => {
-    const { prompt, images, endImage } = collectInputs();
+    const { prompt, images, startImage, endImage } = collectInputs();
     ensureJobGrid();
     updateNodeData(id, { loading: true, status: "送信中…", error: null });
 
@@ -166,6 +183,7 @@ export default function VideoGenNode({ id, data }) {
             model,
             prompt,
             images,
+            startImage,
             endImage,
             resolution: data.resolution ?? "720p",
             duration: data.duration ?? "auto",
@@ -226,24 +244,38 @@ export default function VideoGenNode({ id, data }) {
         position={Position.Left}
         className="io-handle io-handle-image io-handle-left io-target-image"
         isValidConnection={acceptImage}
-        title="開始画像をつなぐ (最初のフレームになる)"
+        title="参照画像をつなぐ (雰囲気やキャラの参照。最大9枚)"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="5" width="18" height="14" rx="2" />
-          <path d="M8 9v6l5-3z" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="M21 15l-5-5-9 9" />
+        </svg>
+      </Handle>
+      {/* 左上: 開始/終了フレームの指定 (青系) */}
+      <Handle
+        id="startImage"
+        type="target"
+        position={Position.Left}
+        className="io-handle io-handle-frame io-handle-left io-target-start"
+        isValidConnection={acceptImage}
+        title="開始画像をつなぐ (最初のフレームになる)"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 6v12l10-6z" />
         </svg>
       </Handle>
       <Handle
         id="endImage"
         type="target"
         position={Position.Left}
-        className="io-handle io-handle-image io-handle-left io-target-end"
+        className="io-handle io-handle-frame io-handle-left io-target-endimg"
         isValidConnection={acceptImage}
         title="終了画像をつなぐ (最後のフレームになる。開始画像とセットで使う)"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="5" width="18" height="14" rx="2" />
-          <path d="M9 9v6M15 9l-4 3 4 3z" />
+          <path d="M6 6v12l8-6z" />
+          <path d="M18 6v12" />
         </svg>
       </Handle>
 
@@ -258,10 +290,11 @@ export default function VideoGenNode({ id, data }) {
         />
       </div>
 
-      {(linked.startCount > 0 || linked.hasEnd) && (
+      {(linked.refCount > 0 || linked.hasStart || linked.hasEnd) && (
         <div className="ref-chips">
-          {linked.startCount > 0 && <span className="ref-chip">開始画像 ×{linked.startCount}</span>}
+          {linked.hasStart && <span className="ref-chip">開始画像</span>}
           {linked.hasEnd && <span className="ref-chip">終了画像</span>}
+          {linked.refCount > 0 && <span className="ref-chip">参照画像 ×{linked.refCount}</span>}
         </div>
       )}
 
@@ -335,8 +368,12 @@ export default function VideoGenNode({ id, data }) {
         </label>
       </div>
 
-      <div className="video-cost-note">
-        ※ 動画は画像よりコストが高めです (720pで1秒あたり約$0.15〜0.30 × 本数)
+      <div
+        className="video-cost-note"
+        title={`概算です。実際の請求はUSD建て (約$${estUsd.toFixed(2)}) で、為替レートにより変動します。「長さ: 自動」は${VIDEO_AUTO_DURATION}秒として計算しています`}
+      >
+        予想コスト <span className="cost-yen">{fmtJpy(estUsd, rate)}</span>
+        ・動画は画像より高コストです
       </div>
 
       <div className="action-row nodrag">

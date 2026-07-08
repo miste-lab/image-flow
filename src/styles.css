@@ -624,13 +624,23 @@ html, body, #root {
 .react-flow__handle.io-target-prompt { bottom: 52px; }
 .react-flow__handle.io-target-image { bottom: 16px; }
 
-/* 動画生成ノードは プロンプト/開始画像/終了画像 の3つ */
-.node-videogen .io-target-prompt { bottom: 88px; }
-.node-videogen .io-target-image { bottom: 52px; }
-.node-videogen .io-target-end { bottom: 16px; }
-
 /* アップスケールノードの動画入力 */
 .react-flow__handle.io-target-video { bottom: 16px; }
+
+/* 開始/終了画像 (動画のフレーム指定) は青系で区別 */
+.react-flow__handle.io-handle-frame {
+  border-radius: 8px;
+  border-color: rgba(92, 200, 255, 0.6);
+  color: #5cc8ff;
+}
+.react-flow__handle.io-handle-frame:hover {
+  border-color: #8ed9ff;
+  color: #8ed9ff;
+  background: rgba(92, 200, 255, 0.15);
+}
+/* 左上に縦に並べる (io-handle-left の top:auto を上書きするため後ろに書く) */
+.react-flow__handle.io-target-start { top: 44px; bottom: auto; }
+.react-flow__handle.io-target-endimg { top: 80px; bottom: auto; }
 
 /* ---------- resize grip (ノード右下・枠の外側の弧) ---------- */
 .resize-grip {
@@ -772,7 +782,7 @@ html, body, #root {
 
 .ratio-menu {
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   left: 0;
   width: 240px;
   max-height: 320px;
@@ -1417,6 +1427,12 @@ html, body, #root {
   font-size: 10px;
   color: var(--muted);
   line-height: 1.5;
+  cursor: help;
+}
+.cost-yen {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 11px;
 }
 
 /* KeyPanel の2枠目の見出し */

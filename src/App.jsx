@@ -48,7 +48,7 @@ const CONTEXT_ITEMS = [
   { type: "imageInput", label: "参照画像を追加", icon: "image" },
   { type: "generate", label: "画像生成ツールを追加", icon: "spark" },
   { type: "videoGen", label: "動画生成ツールを追加", icon: "video" },
-  { type: "upscale", label: "アップスケールを追加", icon: "up" },
+  { type: "upscale", label: "動画アップスケールを追加", icon: "up" },
   { type: "jobGrid", label: "ジョブグリッドを追加", icon: "grid" },
   { type: "memo", label: "付箋メモを追加", icon: "note", divider: true },
 ];
@@ -470,7 +470,7 @@ function Flow({ workspaceId, onBack }) {
                   onClick={() => addNodeAt("upscale", menu.flow, menu.sourceId)}
                 >
                   <MenuIcon name="up" />
-                  アップスケールを追加
+                  動画アップスケールを追加
                 </button>
               )}
               {(menu.sourceType === "generate" || menu.sourceType === "videoGen") && (
