@@ -1,3 +1,4 @@
+# push するたびに自動でビルドして GitHub Pages に公開するワークフロー
 name: Deploy to GitHub Pages
 
 on:
