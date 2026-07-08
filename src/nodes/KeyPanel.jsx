@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getApiKey, setApiKey } from "../api.js";
+import { getApiKey, setApiKey, getKeyStorageMode } from "../api.js";
 
 export default function KeyPanel() {
   const [open, setOpen] = useState(false);
@@ -56,8 +56,9 @@ export default function KeyPanel() {
             autoFocus
           />
           <div className="key-note">
-            キーはこのブラウザ内(localStorage)にのみ保存され、
-            送信先は api.openai.com だけです。共有PCでは使用後に削除を。
+            {getKeyStorageMode() === "session"
+              ? "キーはタブを閉じると消えます(保存しない設定)。送信先は api.openai.com だけです。"
+              : "キーはこのブラウザ内にのみ保存され、送信先は api.openai.com だけです。保存方法は歯車の設定から変更できます。"}
           </div>
           <div className="key-actions">
             <button className="mini-btn" onClick={clear}>削除</button>

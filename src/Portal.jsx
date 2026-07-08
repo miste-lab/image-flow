@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import KeyPanel from "./nodes/KeyPanel.jsx";
+import SettingsPanel from "./nodes/SettingsPanel.jsx";
 import { listWorkspaces, putWorkspace, deleteWorkspace } from "./db.js";
 import { newWorkspace } from "./defaults.js";
 
@@ -129,6 +130,7 @@ export default function Portal({ onOpen }) {
         </div>
         <div className="toolbar-right">
           <KeyPanel />
+          <SettingsPanel />
         </div>
       </header>
 

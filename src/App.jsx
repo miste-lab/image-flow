@@ -16,6 +16,7 @@ import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
 import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
+import SettingsPanel from "./nodes/SettingsPanel.jsx";
 import DeletableEdge from "./edges/DeletableEdge.jsx";
 import Portal from "./Portal.jsx";
 import { makeDefaults, makeId, INIT_SIZE } from "./defaults.js";
@@ -349,6 +350,7 @@ function Flow({ workspaceId, onBack }) {
         <div className="toolbar-right">
           <span className="toolbar-hint">右クリックでノード追加 / 画像はドロップ・Ctrl+Vでも置ける</span>
           <KeyPanel />
+          <SettingsPanel />
         </div>
       </header>
 

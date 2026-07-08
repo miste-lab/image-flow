@@ -3,15 +3,39 @@
 // 送信先は api.openai.com のみ。他のサーバーには一切送られない。
 
 const KEY_STORAGE = "openai_api_key";
+const MODE_STORAGE = "openai_key_storage_mode"; // "local" | "session"
 const MODEL = "gpt-image-2";
 
+// キーの保存方法:
+//  local   = localStorage (ブラウザに残る。次回も入力不要)
+//  session = sessionStorage (タブを閉じると消える。毎回入力)
+export function getKeyStorageMode() {
+  return localStorage.getItem(MODE_STORAGE) || "local";
+}
+
+const activeStore = () =>
+  getKeyStorageMode() === "session" ? sessionStorage : localStorage;
+
 export function getApiKey() {
-  return localStorage.getItem(KEY_STORAGE) || "";
+  // 移行直後などどちらにあっても拾えるよう両方見る (session優先)
+  return (
+    sessionStorage.getItem(KEY_STORAGE) ||
+    localStorage.getItem(KEY_STORAGE) ||
+    ""
+  );
 }
 
 export function setApiKey(key) {
-  if (key) localStorage.setItem(KEY_STORAGE, key.trim());
-  else localStorage.removeItem(KEY_STORAGE);
+  // 使っていない側に残らないよう必ず両方消してから書く
+  sessionStorage.removeItem(KEY_STORAGE);
+  localStorage.removeItem(KEY_STORAGE);
+  if (key) activeStore().setItem(KEY_STORAGE, key.trim());
+}
+
+export function setKeyStorageMode(mode) {
+  const key = getApiKey();
+  localStorage.setItem(MODE_STORAGE, mode);
+  setApiKey(key); // 既存のキーを新しい保存先へ移す
 }
 
 async function dataUrlToBlob(dataUrl) {
