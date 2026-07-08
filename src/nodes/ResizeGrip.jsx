@@ -13,14 +13,15 @@ export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
       style={{
         background: "transparent",
         border: "none",
-        width: 26,
-        height: 26,
-        // 掴める範囲ごと枠の外側へ出す
+        width: 28,
+        height: 28,
+        // 掴める範囲ごと枠の外側へ出す (選択時の緑枠とも重ならない距離)
         left: "auto",
         top: "auto",
-        right: -16,
-        bottom: -16,
+        right: -30,
+        bottom: -30,
         transform: "none",
+        translate: "none", // React Flow既定の translate(-50%) を打ち消す
       }}
     >
       <svg

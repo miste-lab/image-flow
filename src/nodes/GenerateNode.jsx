@@ -14,6 +14,9 @@ const QUALITIES = [
 
 // アスペクト比プリセット(≒1K)を何倍に拡大するか。
 // 2倍/4倍しても「辺が16の倍数」の制約は保たれる
+// 一度に生成できる枚数の上限
+const MAX_COUNT = 3;
+
 const RESOLUTIONS = [
   { value: "auto", label: "解像度: 自動", mult: 1 },
   { value: "1k", label: "1K (標準)", mult: 1 },
@@ -36,7 +39,8 @@ export default function GenerateNode({ id, data }) {
     (conn) => ["imageInput", "generate"].includes(getNode(conn.source)?.type),
     [getNode]
   );
-  const count = data.count ?? 1;
+  // 上限3枚 (旧データに4が残っていてもここで丸める)
+  const count = Math.min(data.count ?? 1, MAX_COUNT);
   const resolution = data.resolution ?? "auto";
 
   // 接続中の画像ソースをタグ付きで列挙 (表示用)。
@@ -152,7 +156,7 @@ export default function GenerateNode({ id, data }) {
   }, [id, data.uid, data.size, data.quality, resolution, count, collectInputs, ensureJobGrid, updateNodeData]);
 
   const setCount = (delta) => {
-    updateNodeData(id, { count: Math.min(4, Math.max(1, count + delta)) });
+    updateNodeData(id, { count: Math.min(MAX_COUNT, Math.max(1, count + delta)) });
   };
 
   return (
@@ -249,7 +253,7 @@ export default function GenerateNode({ id, data }) {
         <div className="count-stepper">
           <button onClick={() => setCount(-1)} disabled={count <= 1}>−</button>
           <span className="count-value">{count}</span>
-          <button onClick={() => setCount(1)} disabled={count >= 4}>＋</button>
+          <button onClick={() => setCount(1)} disabled={count >= MAX_COUNT}>＋</button>
         </div>
         <button className="run-btn" onClick={run} disabled={data.loading}>
           {data.loading ? "生成中…" : count > 1 ? `${count}枚生成` : "生成"}
