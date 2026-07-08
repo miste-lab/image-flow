@@ -83,14 +83,14 @@ export default function GenerateNode({ id, data }) {
     const { prompt, images } = collectInputs();
     updateNodeData(id, { loading: true, error: null });
 
-    // アスペクト比プリセットに解像度の倍率を掛けて最終サイズを決める
+    // アスペクト比プリセットに解像度の倍率を掛けて最終サイズを決める。
+    // 比率が「自動」のまま解像度だけ指定された場合は正方形を基準にする
     let size = data.size;
-    if (size && size !== "auto") {
-      const mult = RESOLUTIONS.find((r) => r.value === resolution)?.mult ?? 1;
-      if (mult > 1) {
-        const [w, h] = size.split("x").map(Number);
-        size = `${w * mult}x${h * mult}`;
-      }
+    const mult = RESOLUTIONS.find((r) => r.value === resolution)?.mult ?? 1;
+    if (resolution !== "auto") {
+      const base = size && size !== "auto" ? size : "1024x1024";
+      const [w, h] = base.split("x").map(Number);
+      size = `${w * mult}x${h * mult}`;
     }
 
     try {
@@ -182,12 +182,7 @@ export default function GenerateNode({ id, data }) {
         <select
           value={resolution}
           onChange={(e) => updateNodeData(id, { resolution: e.target.value })}
-          disabled={!data.size || data.size === "auto"}
-          title={
-            !data.size || data.size === "auto"
-              ? "アスペクト比が「自動」のときは解像度を指定できません"
-              : "出力解像度 (プリセット寸法に対する倍率)"
-          }
+          title="出力解像度。比率が「自動」のときは正方形(1024×1024)を基準に拡大します"
         >
           {RESOLUTIONS.map((r) => (
             <option key={r.value} value={r.value}>{r.label}</option>
