@@ -1061,15 +1061,24 @@ html, body, #root {
 .jobgrid-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
   align-items: start;
 }
 
-.jobgrid-cell { position: relative; }
+/* セルに枠線+面の色を付けて、黒背景の画像同士でも境界がわかるようにする */
+.jobgrid-cell {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color 0.12s;
+}
+.jobgrid-cell:hover { border-color: var(--accent); }
 .jobgrid-img {
   width: 100%;
   display: block;
-  border-radius: 6px;
 }
 .jobgrid-cell:hover .cell-save { opacity: 1; }
 .cell-save { cursor: pointer; }

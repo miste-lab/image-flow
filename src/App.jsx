@@ -396,6 +396,7 @@ function Flow({ workspaceId, onBack }) {
           proOptions={{ hideAttribution: true }}
           deleteKeyCode={["Backspace", "Delete"]}
           colorMode="dark"
+          zoomOnDoubleClick={false} /* ジョブグリッドのダブルクリック拡大と競合するため */
         >
           <Background gap={22} size={1.4} color="#333338" />
           <Controls position="bottom-left" />

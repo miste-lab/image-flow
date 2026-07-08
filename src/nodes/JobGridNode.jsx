@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ResizeGrip from "./ResizeGrip.jsx";
-import { listHistory, getHistoryImage } from "../db.js";
+import { listHistory, getHistoryImage, openHistoryImage } from "../db.js";
 
 const idNum = (nodeId) => (String(nodeId).match(/(\d+)$/) || [])[1] || "?";
 
@@ -118,7 +118,8 @@ export default function JobGridNode({ id }) {
               <div
                 className="jobgrid-cell"
                 key={h.id}
-                title={`${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
+                title={`ダブルクリックで拡大\n${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
+                onDoubleClick={() => openHistoryImage(h.id, h.thumb)}
               >
                 <img className="jobgrid-img" src={h.thumb} alt="生成画像" />
                 <button className="cell-save" title="この画像を保存" onClick={() => save(h)}>

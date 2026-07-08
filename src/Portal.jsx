@@ -7,6 +7,7 @@ import {
   deleteWorkspace,
   listHistory,
   getHistoryImage,
+  openHistoryImage,
   deleteHistory,
   estimateStorage,
 } from "./db.js";
@@ -132,13 +133,6 @@ function HistorySection() {
     a.click();
   };
 
-  // クリックでフル解像度を新しいタブで開く
-  const openFull = async (h) => {
-    const full = (await getHistoryImage(h.id)) || h.thumb;
-    const blob = await (await fetch(full)).blob();
-    window.open(URL.createObjectURL(blob), "_blank");
-  };
-
   const remove = async (h) => {
     if (!window.confirm("この画像を履歴から削除しますか？")) return;
     await deleteHistory(h.id);
@@ -182,7 +176,7 @@ function HistorySection() {
               key={h.id}
               title={`${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
             >
-              <button className="history-open" onClick={() => openFull(h)}>
+              <button className="history-open" onClick={() => openHistoryImage(h.id, h.thumb)}>
                 <img className="history-img" src={h.thumb} alt="生成画像" loading="lazy" />
               </button>
               <div className="history-actions">

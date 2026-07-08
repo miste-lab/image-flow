@@ -3,6 +3,7 @@ import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import RatioSelect from "./RatioSelect.jsx";
 import { generateImages } from "../api.js";
 import { addHistory } from "../db.js";
+import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
 
 const QUALITIES = [
   { value: "auto", label: "品質: 自動" },
@@ -24,7 +25,7 @@ const RESOLUTIONS = [
 const idNum = (nodeId) => (String(nodeId).match(/(\d+)$/) || [])[1] || "?";
 
 export default function GenerateNode({ id, data }) {
-  const { updateNodeData, getNodes, getEdges, getNode } = useReactFlow();
+  const { updateNodeData, getNodes, getEdges, getNode, addNodes, addEdges } = useReactFlow();
 
   // ハンドルごとに受け付ける接続元を制限する
   const acceptPrompt = useCallback(
@@ -91,8 +92,36 @@ export default function GenerateNode({ id, data }) {
     return { prompt: prompts.join("\n"), images };
   }, [id, data.prompt, getNodes, getEdges]);
 
+  // ジョブグリッドが1つもつながっていなければ、右隣に自動作成してつなぐ
+  const ensureJobGrid = useCallback(() => {
+    const hasGrid = getEdges().some(
+      (e) => e.source === id && getNode(e.target)?.type === "jobGrid"
+    );
+    if (hasGrid) return;
+    const me = getNode(id);
+    const newId = makeId("jobGrid", getNodes());
+    addNodes({
+      id: newId,
+      type: "jobGrid",
+      position: {
+        x: me.position.x + (me.measured?.width ?? 320) + 80,
+        y: me.position.y,
+      },
+      ...INIT_SIZE.jobGrid,
+      data: makeDefaults("jobGrid"),
+    });
+    addEdges({
+      id: `e-${id}-${newId}`,
+      source: id,
+      target: newId,
+      targetHandle: "jobs",
+      type: "deletable",
+    });
+  }, [id, getEdges, getNode, getNodes, addNodes, addEdges]);
+
   const run = useCallback(async () => {
     const { prompt, images } = collectInputs();
+    ensureJobGrid(); // 結果の行き先がない状態で生成しないようにする
     updateNodeData(id, { loading: true, error: null });
 
     // アスペクト比プリセットに解像度の倍率を掛けて最終サイズを決める。
@@ -120,7 +149,7 @@ export default function GenerateNode({ id, data }) {
     } catch (err) {
       updateNodeData(id, { loading: false, error: err.message });
     }
-  }, [id, data.uid, data.size, data.quality, resolution, count, collectInputs, updateNodeData]);
+  }, [id, data.uid, data.size, data.quality, resolution, count, collectInputs, ensureJobGrid, updateNodeData]);
 
   const setCount = (delta) => {
     updateNodeData(id, { count: Math.min(4, Math.max(1, count + delta)) });
