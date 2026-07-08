@@ -37,6 +37,7 @@ html, body, #root {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative; /* connect-menu の位置基準 */
 }
 
 /* ---------- toolbar ---------- */
@@ -446,6 +447,40 @@ html, body, #root {
 }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- connect menu (線を空きスペースで離すと出る) ---------- */
+.connect-menu {
+  position: absolute;
+  transform: translate(-8px, -50%);
+  z-index: 60;
+  background: #10141f;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  animation: connect-menu-in 0.12s ease-out;
+}
+@keyframes connect-menu-in {
+  from { opacity: 0; transform: translate(-8px, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-8px, -50%) scale(1); }
+}
+
+.connect-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.connect-menu-btn:hover { background: var(--surface-2); }
+.connect-menu-btn svg { color: var(--muted); flex: none; }
 
 /* ---------- deletable edge (scissors) ---------- */
 .edge-scissors {
