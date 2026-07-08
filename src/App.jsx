@@ -365,7 +365,7 @@ function Flow({ workspaceId, onBack }) {
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView
-          proOptions={{ hideAttribution: false }}
+          proOptions={{ hideAttribution: true }}
           deleteKeyCode={["Backspace", "Delete"]}
           colorMode="dark"
         >
