@@ -1,7 +1,9 @@
 import React from "react";
 import { NodeResizeControl } from "@xyflow/react";
 
-// ノード右下のリサイズつまみ (掴んで縦横に伸縮できる)
+// ノード右下のリサイズつまみ。
+// ノード枠の「外側」に弧を描く (中のスクロールバー等と被らないため)。
+// ノードにカーソルを乗せているときだけ表示される (styles.css の .resize-grip)
 export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
   return (
     <NodeResizeControl
@@ -11,28 +13,28 @@ export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
       style={{
         background: "transparent",
         border: "none",
-        width: 22,
-        height: 22,
-        // 既定では角の中心に置かれて半分はみ出すので、ノードの内側に収める
+        width: 26,
+        height: 26,
+        // 掴める範囲ごと枠の外側へ出す
         left: "auto",
         top: "auto",
-        right: 0,
-        bottom: 0,
+        right: -16,
+        bottom: -16,
         transform: "none",
       }}
     >
       <svg
         className="resize-grip"
-        width="12"
-        height="12"
-        viewBox="0 0 12 12"
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="2.6"
         strokeLinecap="round"
       >
-        <path d="M11 5L5 11" />
-        <path d="M11 9l-2 2" />
+        {/* 角の外側を回る 1/4 円弧 */}
+        <path d="M3 15 A 12 12 0 0 0 15 3" />
       </svg>
     </NodeResizeControl>
   );

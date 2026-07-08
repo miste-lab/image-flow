@@ -7,10 +7,10 @@ import {
   deleteWorkspace,
   listHistory,
   getHistoryImage,
-  openHistoryImage,
   deleteHistory,
   estimateStorage,
 } from "./db.js";
+import { openImageViewer } from "./ImageViewer.jsx";
 import { newWorkspace } from "./defaults.js";
 
 // サムネイル描画用のノード概算サイズ (実物のおおよその縦横)
@@ -176,7 +176,7 @@ function HistorySection() {
               key={h.id}
               title={`${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
             >
-              <button className="history-open" onClick={() => openHistoryImage(h.id, h.thumb)}>
+              <button className="history-open" onClick={() => openImageViewer(h)}>
                 <img className="history-img" src={h.thumb} alt="生成画像" loading="lazy" />
               </button>
               <div className="history-actions">

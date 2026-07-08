@@ -20,6 +20,7 @@ import KeyPanel from "./nodes/KeyPanel.jsx";
 import SettingsPanel from "./nodes/SettingsPanel.jsx";
 import DeletableEdge from "./edges/DeletableEdge.jsx";
 import Portal from "./Portal.jsx";
+import ImageViewer from "./ImageViewer.jsx";
 import { makeDefaults, makeId, INIT_SIZE } from "./defaults.js";
 import { getWorkspace, putWorkspace } from "./db.js";
 
@@ -473,12 +474,18 @@ export default function App() {
   }, []);
 
   if (route.page === "portal") {
-    return <Portal onOpen={openWorkspace} />;
+    return (
+      <>
+        <Portal onOpen={openWorkspace} />
+        <ImageViewer />
+      </>
+    );
   }
 
   return (
     <ReactFlowProvider>
       <Flow key={route.id} workspaceId={route.id} onBack={goPortal} />
+      <ImageViewer />
     </ReactFlowProvider>
   );
 }

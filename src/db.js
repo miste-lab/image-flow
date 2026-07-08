@@ -89,13 +89,6 @@ export const getHistoryImage = async (id) => {
   return rec?.image || null;
 };
 
-// フル解像度の画像を新しいタブで大きく表示する (履歴・ジョブグリッド共用)
-export async function openHistoryImage(id, fallback) {
-  const full = (await getHistoryImage(id)) || fallback;
-  const blob = await (await fetch(full)).blob();
-  window.open(URL.createObjectURL(blob), "_blank");
-}
-
 export async function deleteHistory(id) {
   await withStore(HISTORY, "readwrite", (s) => s.delete(id));
   await withStore(HISTORY_IMG, "readwrite", (s) => s.delete(id));

@@ -620,13 +620,20 @@ html, body, #root {
 .react-flow__handle.io-target-prompt { bottom: 92px; }
 .react-flow__handle.io-target-image { bottom: 52px; }
 
-/* ---------- resize grip (ノード右下のつまみ) ---------- */
+/* ---------- resize grip (ノード右下・枠の外側の弧) ---------- */
 .resize-grip {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
+  inset: 0;
+  margin: auto;
   color: var(--muted);
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+/* ノード(またはつまみ自身)にカーソルが乗っているときだけ見せる */
+.react-flow__node:hover .resize-grip,
+.react-flow__node.selected .resize-grip {
+  opacity: 1;
 }
 .node:hover .resize-grip { color: var(--accent); }
 
@@ -1172,3 +1179,102 @@ html, body, #root {
   background: rgba(11, 14, 20, 0.85);
   color: var(--text);
 }
+
+/* ---------- image viewer (アプリ内モーダル) ---------- */
+.viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 34px;
+}
+
+.viewer-panel {
+  display: flex;
+  max-width: min(1150px, 100%);
+  max-height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.viewer-stage {
+  flex: 1;
+  min-width: 320px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.viewer-image {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 68px);
+  object-fit: contain;
+}
+
+.viewer-side {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.viewer-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.viewer-title { font-size: 13px; font-weight: 700; }
+
+.viewer-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.viewer-close:hover { border-color: var(--accent); color: var(--text); }
+
+.viewer-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.viewer-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+.viewer-row dt { color: var(--muted); }
+.viewer-row dd { margin: 0; font-weight: 600; text-align: right; }
+
+.viewer-save-btn {
+  margin-top: auto;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  border: none;
+  color: #08130c;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 10px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.viewer-save-btn:hover:not(:disabled) { filter: brightness(1.12); }
+.viewer-save-btn:disabled { opacity: 0.55; cursor: default; }
