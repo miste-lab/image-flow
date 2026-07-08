@@ -210,11 +210,12 @@ html, body, #root {
 }
 
 /* ---------- nodes (common) ---------- */
+/* min-width は付けないこと: リサイズ時にラッパーだけ縮んで
+   中身のカードが縮まず、ハンドル位置がズレる原因になる */
 .node {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  min-width: 230px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   font-size: 12.5px;
 }

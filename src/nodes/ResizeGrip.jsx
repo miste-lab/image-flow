@@ -8,7 +8,18 @@ export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
       position="bottom-right"
       minWidth={minWidth}
       minHeight={minHeight}
-      style={{ background: "transparent", border: "none", width: 22, height: 22 }}
+      style={{
+        background: "transparent",
+        border: "none",
+        width: 22,
+        height: 22,
+        // 既定では角の中心に置かれて半分はみ出すので、ノードの内側に収める
+        left: "auto",
+        top: "auto",
+        right: 0,
+        bottom: 0,
+        transform: "none",
+      }}
     >
       <svg
         className="resize-grip"
