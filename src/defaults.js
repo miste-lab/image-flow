@@ -38,5 +38,5 @@ export const newWorkspace = (name) => ({
     { id: "prompt-1", type: "prompt", position: { x: 80, y: 160 }, ...INIT_SIZE.prompt, data: makeDefaults("prompt") },
     { id: "generate-1", type: "generate", position: { x: 460, y: 100 }, data: makeDefaults("generate") },
   ],
-  edges: [{ id: "e1", source: "prompt-1", target: "generate-1", type: "deletable" }],
+  edges: [{ id: "e1", source: "prompt-1", target: "generate-1", targetHandle: "prompt", type: "deletable" }],
 });

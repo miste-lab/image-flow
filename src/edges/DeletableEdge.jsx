@@ -6,10 +6,18 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 
+// 接続元の種類ごとの線の色 (プロンプト=緑 / 画像系=紫)
+const EDGE_COLORS = {
+  prompt: "#2bd97e",
+  imageInput: "#a78bfa",
+  generate: "#a78bfa",
+};
+
 // ホバーするとハサミが出て、クリックで接続を切れるエッジ
 export default function DeletableEdge(props) {
   const {
     id,
+    source,
     sourceX,
     sourceY,
     targetX,
@@ -20,8 +28,9 @@ export default function DeletableEdge(props) {
     style,
   } = props;
 
-  const { setEdges } = useReactFlow();
+  const { setEdges, getNode } = useReactFlow();
   const [hovered, setHovered] = useState(false);
+  const color = EDGE_COLORS[getNode(source)?.type] || "#2bd97e";
 
   const [path, labelX, labelY] = getBezierPath({
     sourceX,
@@ -43,7 +52,7 @@ export default function DeletableEdge(props) {
         id={id}
         path={path}
         markerEnd={markerEnd}
-        style={{ ...style, stroke: hovered ? "#a8c2ff" : undefined }}
+        style={{ ...style, stroke: hovered ? "#e6e6e9" : color }}
       />
       {/* 当たり判定用の太い透明パス(細い線でもホバーしやすくする) */}
       <path

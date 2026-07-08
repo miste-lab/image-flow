@@ -23,7 +23,17 @@ const RESOLUTIONS = [
 const idNum = (nodeId) => (String(nodeId).match(/(\d+)$/) || [])[1] || "?";
 
 export default function GenerateNode({ id, data }) {
-  const { updateNodeData, getNodes, getEdges } = useReactFlow();
+  const { updateNodeData, getNodes, getEdges, getNode } = useReactFlow();
+
+  // ハンドルごとに受け付ける接続元を制限する
+  const acceptPrompt = useCallback(
+    (conn) => getNode(conn.source)?.type === "prompt",
+    [getNode]
+  );
+  const acceptImage = useCallback(
+    (conn) => ["imageInput", "generate"].includes(getNode(conn.source)?.type),
+    [getNode]
+  );
   const count = data.count ?? 1;
   const results = data.results ?? [];
   const resolution = data.resolution ?? "auto";
@@ -113,7 +123,34 @@ export default function GenerateNode({ id, data }) {
 
   return (
     <div className="node node-generate">
-      <Handle type="target" position={Position.Left} />
+      {/* 入力ハンドル: 左下固定。プロンプト(緑)と画像(紫)で分ける */}
+      <Handle
+        id="prompt"
+        type="target"
+        position={Position.Left}
+        className="io-handle io-handle-prompt io-handle-left io-target-prompt"
+        isValidConnection={acceptPrompt}
+        title="プロンプトをつなぐ"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z" />
+          <path d="M13 3v5h5" />
+        </svg>
+      </Handle>
+      <Handle
+        id="image"
+        type="target"
+        position={Position.Left}
+        className="io-handle io-handle-image io-handle-left io-target-image"
+        isValidConnection={acceptImage}
+        title="参照画像をつなぐ"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="M21 15l-5-5-9 9" />
+        </svg>
+      </Handle>
 
       <div className="node-header">
         <span className="node-dot dot-generate" />
@@ -201,7 +238,14 @@ export default function GenerateNode({ id, data }) {
         </button>
       </div>
 
-      <Handle type="source" position={Position.Right} />
+      {/* 出力(生成画像)は画像扱いなので紫 */}
+      <Handle type="source" position={Position.Right} className="io-handle io-handle-image">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="M21 15l-5-5-9 9" />
+        </svg>
+      </Handle>
     </div>
   );
 }

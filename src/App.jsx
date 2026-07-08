@@ -109,8 +109,17 @@ function Flow({ workspaceId, onBack }) {
       const migrated = (ws.nodes || []).map((n) =>
         n.width == null && INIT_SIZE[n.type] ? { ...n, ...INIT_SIZE[n.type] } : n
       );
+      // 旧エッジは targetHandle がないので、接続元の種類で振り分ける
+      const byId = Object.fromEntries(migrated.map((n) => [n.id, n]));
+      const migratedEdges = (ws.edges || []).map((e) => {
+        if (byId[e.target]?.type === "generate" && !e.targetHandle) {
+          const srcType = byId[e.source]?.type;
+          return { ...e, targetHandle: srcType === "prompt" ? "prompt" : "image" };
+        }
+        return e;
+      });
       setNodes(migrated);
-      setEdges(ws.edges || []);
+      setEdges(migratedEdges);
       setWsName(ws.name || "無題");
       setReady(true);
     });
@@ -153,6 +162,7 @@ function Flow({ workspaceId, onBack }) {
   const onConnectEnd = useCallback(
     (event, connectionState) => {
       if (connectionState.isValid) return; // ノードに繋がった場合は通常処理
+      if (connectionState.toNode) return; // 不正なハンドル上で離した場合もメニューは出さない
       const fromNode = connectionState.fromNode;
       if (!fromNode || connectionState.fromHandle?.type !== "source") return;
       const { clientX, clientY } =
@@ -196,9 +206,17 @@ function Flow({ workspaceId, onBack }) {
         },
       ]);
       if (sourceId) {
+        // 接続元の種類に応じて生成ノードの入力口を選ぶ
+        const srcType = nodes.find((n) => n.id === sourceId)?.type;
         setEdges((eds) => [
           ...eds,
-          { id: `e-${sourceId}-${newId}`, source: sourceId, target: newId, type: "deletable" },
+          {
+            id: `e-${sourceId}-${newId}`,
+            source: sourceId,
+            target: newId,
+            targetHandle: srcType === "prompt" ? "prompt" : "image",
+            type: "deletable",
+          },
         ]);
       }
       setMenu(null);

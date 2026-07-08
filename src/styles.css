@@ -325,6 +325,7 @@ html, body, #root {
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
+  padding-right: 22px; /* 右下のリサイズつまみと被らないように */
 }
 .image-name {
   font-size: 10.5px;
@@ -554,14 +555,36 @@ html, body, #root {
   transition: border-color 0.12s, color 0.12s;
 }
 .react-flow__handle.io-handle svg { pointer-events: none; }
-.react-flow__handle.io-handle:hover,
-.react-flow__handle.io-handle.connectionindicator:hover {
-  border-color: var(--accent);
+
+/* 種類で色分け: プロンプト=緑の丸 / 画像=紫の角丸 */
+.react-flow__handle.io-handle-prompt {
+  border-radius: 50%;
+  border-color: rgba(43, 217, 126, 0.55);
   color: var(--accent);
 }
+.react-flow__handle.io-handle-prompt:hover {
+  border-color: var(--accent);
+  background: rgba(43, 217, 126, 0.15);
+}
+.react-flow__handle.io-handle-image {
+  border-radius: 8px;
+  border-color: rgba(167, 139, 250, 0.6);
+  color: #a78bfa;
+}
+.react-flow__handle.io-handle-image:hover {
+  border-color: #c4b0ff;
+  color: #c4b0ff;
+  background: rgba(167, 139, 250, 0.15);
+}
 
-.io-handle-prompt { border-radius: 50%; }
-.io-handle-image { border-radius: 8px; }
+/* 生成ノードの入力側: 左下に固定で縦に並べる */
+.react-flow__handle.io-handle-left {
+  right: auto;
+  left: -13px;
+  top: auto;
+}
+.react-flow__handle.io-target-prompt { bottom: 92px; }
+.react-flow__handle.io-target-image { bottom: 52px; }
 
 /* ---------- resize grip (ノード右下のつまみ) ---------- */
 .resize-grip {
