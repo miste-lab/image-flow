@@ -1,5 +1,6 @@
 import React from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
+import ResizeGrip from "./ResizeGrip.jsx";
 
 export default function PromptNode({ id, data }) {
   const { updateNodeData } = useReactFlow();
@@ -11,13 +12,13 @@ export default function PromptNode({ id, data }) {
         プロンプト
       </div>
       <textarea
-        className="nodrag prompt-textarea"
+        className="nodrag nowheel prompt-textarea"
         placeholder="生成したい画像の内容を入力…"
         value={data.text}
-        rows={5}
         onChange={(e) => updateNodeData(id, { text: e.target.value })}
       />
       <Handle type="source" position={Position.Right} />
+      <ResizeGrip minWidth={220} minHeight={140} />
     </div>
   );
 }

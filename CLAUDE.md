@@ -25,8 +25,10 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 - Expressに戻す場合の考慮は不要
 
 ## ノードの仕様
-- **prompt** (PromptNode): テキスト入力。複数接続時は改行で結合される
-- **imageInput** (ImageInputNode): ローカル画像をdataURLで保持
+- **prompt** (PromptNode): テキスト入力。複数接続時は改行で結合される。右下グリップでリサイズ可
+- **imageInput** (ImageInputNode): ローカル画像をdataURLで保持。リサイズ可(画像はobject-fit:containでアスペクト比維持)。
+  キャンバスへのD&D・Ctrl+V(クリップボード画像)でも作成できる
+- **memo** (MemoNode): 付箋メモ。接続ハンドルなし、×ボタンで削除、リサイズ可。琥珀系の配色
 - **generate** (GenerateNode):
   - 入力エッジからプロンプト/画像を収集して生成
   - 画像入力あり → /v1/images/edits、なし → /v1/images/generations
@@ -36,6 +38,10 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   - 品質 auto/low/medium/high、枚数1〜4 (ステッパー)
   - 複数枚は2列グリッド表示、ホバーで個別保存ボタン
 - **エッジ**: DeletableEdge。ホバーでハサミボタンが出現、クリックで切断
+- **ノード追加UI**: ツールバーの＋ボタン / 何もない場所を右クリック(コンテキストメニュー) /
+  出力ハンドルから線を空きスペースで離す(生成ノードを提案)
+- リサイズはReact FlowのNodeResizeControl (src/nodes/ResizeGrip.jsx)。
+  初期サイズは defaults.js の INIT_SIZE。旧データは読込時にサイズを補完している
 
 ## ワークスペース機能 (2026-07-08追加)
 - 複数のキャンバスを「ワークスペース」として保存・切替できる

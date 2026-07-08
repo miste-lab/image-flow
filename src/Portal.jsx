@@ -8,6 +8,7 @@ const THUMB_SIZE = {
   prompt: [280, 170],
   imageInput: [230, 210],
   generate: [320, 330],
+  memo: [260, 190],
 };
 
 // ワークスペースのノード配置をSVGでミニチュア描画する
@@ -16,8 +17,9 @@ function Thumb({ nodes = [], edges = [] }) {
     return <div className="ws-thumb-empty">空のワークスペース</div>;
   }
   const boxes = nodes.map((n) => {
-    const [w, h] = THUMB_SIZE[n.type] || [200, 150];
-    return { ...n, w, h };
+    const [dw, dh] = THUMB_SIZE[n.type] || [200, 150];
+    // リサイズ済みノードは実際のサイズで描く
+    return { ...n, w: n.width || dw, h: n.height || dh };
   });
   const byId = Object.fromEntries(boxes.map((b) => [b.id, b]));
   const pad = 60;
@@ -57,7 +59,9 @@ function Thumb({ nodes = [], edges = [] }) {
             <rect
               x={b.position.x} y={b.position.y}
               width={b.w} height={b.h} rx="14"
-              fill="#18181c" stroke="#2a2a2f" strokeWidth="2"
+              fill={b.type === "memo" ? "#23200f" : "#18181c"}
+              stroke={b.type === "memo" ? "#47401d" : "#2a2a2f"}
+              strokeWidth="2"
             />
             {img && (
               <image

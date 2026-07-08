@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
+import ResizeGrip from "./ResizeGrip.jsx";
 
 export default function ImageInputNode({ id, data }) {
   const { updateNodeData } = useReactFlow();
@@ -22,7 +23,10 @@ export default function ImageInputNode({ id, data }) {
 
       {data.image ? (
         <div className="image-preview-wrap">
-          <img className="image-preview" src={data.image} alt={data.fileName || "input"} />
+          {/* ボックスに合わせて伸縮 (アスペクト比は維持) */}
+          <div className="image-preview-box">
+            <img className="image-preview" src={data.image} alt={data.fileName || "input"} />
+          </div>
           <div className="image-meta">
             <span className="image-name" title={data.fileName}>{data.fileName}</span>
             <button
@@ -37,9 +41,13 @@ export default function ImageInputNode({ id, data }) {
         <button
           className="upload-area nodrag"
           onClick={() => fileRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onDrop={(e) => {
             e.preventDefault();
+            e.stopPropagation(); // キャンバス側のドロップ処理と二重にならないように
             onFile(e.dataTransfer.files?.[0]);
           }}
         >
@@ -57,6 +65,7 @@ export default function ImageInputNode({ id, data }) {
       />
 
       <Handle type="source" position={Position.Right} />
+      <ResizeGrip minWidth={180} minHeight={160} />
     </div>
   );
 }

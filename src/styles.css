@@ -238,11 +238,18 @@ html, body, #root {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
-/* ---------- prompt node ---------- */
-.node-prompt { width: 280px; }
+/* ---------- prompt node (リサイズ可能) ---------- */
+.node-prompt {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 .prompt-textarea {
   display: block;
+  flex: 1;
+  min-height: 0;
   width: calc(100% - 20px);
   margin: 10px;
   background: var(--ink);
@@ -252,7 +259,7 @@ html, body, #root {
   padding: 9px 10px;
   font-size: 12.5px;
   line-height: 1.6;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
 }
 .prompt-textarea:focus {
@@ -261,17 +268,25 @@ html, body, #root {
 }
 .prompt-textarea::placeholder { color: var(--muted); }
 
-/* ---------- image input node ---------- */
-.node-image { width: 230px; }
+/* ---------- image input node (リサイズ可能) ---------- */
+.node-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 .upload-area {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  flex: 1;
+  min-height: 0;
   width: calc(100% - 20px);
   margin: 10px;
-  padding: 26px 10px;
+  padding: 10px;
   background: var(--ink);
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -283,10 +298,24 @@ html, body, #root {
 .upload-area:hover { border-color: var(--accent); }
 .upload-sub { font-size: 10.5px; color: var(--muted); }
 
-.image-preview-wrap { padding: 10px; }
+.image-preview-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+/* 画像はボックスに合わせて伸縮、アスペクト比は object-fit で維持 */
+.image-preview-box {
+  flex: 1;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
 .image-preview {
   width: 100%;
-  border-radius: 8px;
+  height: 100%;
+  object-fit: contain;
   display: block;
 }
 .image-meta {
@@ -500,6 +529,77 @@ html, body, #root {
 }
 .connect-menu-btn:hover { background: var(--surface-2); }
 .connect-menu-btn svg { color: var(--muted); flex: none; }
+
+.connect-menu-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+
+/* ---------- resize grip (ノード右下のつまみ) ---------- */
+.resize-grip {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.node:hover .resize-grip { color: var(--accent); }
+
+/* ---------- memo node (付箋) ---------- */
+.node-memo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #23200f;
+  border-color: #47401d;
+}
+
+.memo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #d9c576;
+  border-bottom: 1px solid #38321a;
+}
+
+.memo-close {
+  background: transparent;
+  border: none;
+  color: #9c8f5c;
+  font-size: 15px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.memo-close:hover { background: #38321a; color: #e8dba4; }
+
+.memo-textarea {
+  flex: 1;
+  min-height: 0;
+  width: calc(100% - 20px);
+  margin: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid #38321a;
+  border-radius: 8px;
+  color: #e8dfb8;
+  padding: 9px 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: none;
+  font-family: inherit;
+}
+.memo-textarea:focus { outline: none; border-color: #d9c576; }
+.memo-textarea::placeholder { color: #9c8f5c; }
+
+.node-memo .resize-grip { color: #9c8f5c; }
+.node-memo:hover .resize-grip { color: #d9c576; }
 
 /* ---------- deletable edge (scissors) ---------- */
 .edge-scissors {

@@ -14,16 +14,18 @@ import {
 import PromptNode from "./nodes/PromptNode.jsx";
 import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
+import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
 import DeletableEdge from "./edges/DeletableEdge.jsx";
 import Portal from "./Portal.jsx";
-import { makeDefaults, makeId } from "./defaults.js";
+import { makeDefaults, makeId, INIT_SIZE } from "./defaults.js";
 import { getWorkspace, putWorkspace } from "./db.js";
 
 const nodeTypes = {
   prompt: PromptNode,
   imageInput: ImageInputNode,
   generate: GenerateNode,
+  memo: MemoNode,
 };
 
 const edgeTypes = {
@@ -31,6 +33,60 @@ const edgeTypes = {
 };
 
 const defaultEdgeOptions = { type: "deletable" };
+
+// 右クリックメニューの項目
+const CONTEXT_ITEMS = [
+  { type: "prompt", label: "プロンプトを追加", icon: "text" },
+  { type: "imageInput", label: "参照画像を追加", icon: "image" },
+  { type: "generate", label: "画像生成ツールを追加", icon: "spark" },
+  { type: "memo", label: "付箋メモを追加", icon: "note", divider: true },
+];
+
+function MenuIcon({ name }) {
+  const paths = {
+    text: (
+      <>
+        <path d="M4 6h16" />
+        <path d="M4 12h10" />
+        <path d="M4 18h7" />
+      </>
+    ),
+    image: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <circle cx="8.5" cy="10" r="1.5" />
+        <path d="M21 15l-5-5-9 9" />
+      </>
+    ),
+    spark: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+      </>
+    ),
+    note: (
+      <>
+        <path d="M5 4h14v11l-5 5H5z" />
+        <path d="M14 20v-5h5" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
 
 function Flow({ workspaceId, onBack }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -49,7 +105,11 @@ function Flow({ workspaceId, onBack }) {
         onBack(); // 存在しないIDなら一覧へ戻す
         return;
       }
-      setNodes(ws.nodes || []);
+      // 旧データにはサイズがないので、リサイズ対応ノードに初期サイズを補う
+      const migrated = (ws.nodes || []).map((n) =>
+        n.width == null && INIT_SIZE[n.type] ? { ...n, ...INIT_SIZE[n.type] } : n
+      );
+      setNodes(migrated);
       setEdges(ws.edges || []);
       setWsName(ws.name || "無題");
       setReady(true);
@@ -66,13 +126,27 @@ function Flow({ workspaceId, onBack }) {
     return () => clearTimeout(t);
   }, [nodes, edges, wsName, ready, workspaceId]);
 
-  // 線を何もない場所で離したときに出す「ノード追加」メニュー
-  const [connectMenu, setConnectMenu] = useState(null);
+  // フローティングメニュー
+  //  kind: "connect" = 線を空きスペースで離した / "context" = 右クリック
+  const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: "deletable" }, eds)),
     [setEdges]
+  );
+
+  // 画面座標 → メニュー表示位置 + キャンバス座標
+  const menuPosition = useCallback(
+    (clientX, clientY) => {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+        flow: screenToFlowPosition({ x: clientX, y: clientY }),
+      };
+    },
+    [screenToFlowPosition]
   );
 
   // 接続ドラッグが空きスペースで終わったらメニューを表示
@@ -81,49 +155,127 @@ function Flow({ workspaceId, onBack }) {
       if (connectionState.isValid) return; // ノードに繋がった場合は通常処理
       const fromNode = connectionState.fromNode;
       if (!fromNode || connectionState.fromHandle?.type !== "source") return;
-
       const { clientX, clientY } =
         "changedTouches" in event ? event.changedTouches[0] : event;
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setConnectMenu({
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-        flow: screenToFlowPosition({ x: clientX, y: clientY }),
-        sourceId: fromNode.id,
-      });
+      setMenu({ kind: "connect", sourceId: fromNode.id, ...menuPosition(clientX, clientY) });
     },
-    [screenToFlowPosition]
+    [menuPosition]
+  );
+
+  // 何もない場所を右クリックしたらノード追加メニューを表示
+  const onPaneContextMenu = useCallback(
+    (event) => {
+      event.preventDefault();
+      setMenu({ kind: "context", ...menuPosition(event.clientX, event.clientY) });
+    },
+    [menuPosition]
   );
 
   // メニューの外をクリックしたら閉じる
   useEffect(() => {
-    if (!connectMenu) return;
+    if (!menu) return;
     const close = (e) => {
-      if (!menuRef.current?.contains(e.target)) setConnectMenu(null);
+      if (!menuRef.current?.contains(e.target)) setMenu(null);
     };
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
-  }, [connectMenu]);
+  }, [menu]);
 
-  // メニューから生成ノードを追加して、線を引いた元ノードと接続
-  const addGenerateFromMenu = useCallback(() => {
-    if (!connectMenu) return;
-    const newId = makeId("generate", nodes);
-    setNodes((nds) => [
-      ...nds,
-      {
-        id: newId,
-        type: "generate",
-        position: { x: connectMenu.flow.x, y: connectMenu.flow.y - 24 },
-        data: makeDefaults("generate"),
-      },
-    ]);
-    setEdges((eds) => [
-      ...eds,
-      { id: `e-${connectMenu.sourceId}-${newId}`, source: connectMenu.sourceId, target: newId, type: "deletable" },
-    ]);
-    setConnectMenu(null);
-  }, [connectMenu, nodes, setNodes, setEdges]);
+  // 指定位置にノードを追加 (sourceId があれば線も引く)
+  const addNodeAt = useCallback(
+    (type, flowPos, sourceId = null) => {
+      const newId = makeId(type, nodes);
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: newId,
+          type,
+          position: { x: flowPos.x, y: flowPos.y - 24 },
+          ...(INIT_SIZE[type] || {}),
+          data: makeDefaults(type),
+        },
+      ]);
+      if (sourceId) {
+        setEdges((eds) => [
+          ...eds,
+          { id: `e-${sourceId}-${newId}`, source: sourceId, target: newId, type: "deletable" },
+        ]);
+      }
+      setMenu(null);
+    },
+    [nodes, setNodes, setEdges]
+  );
+
+  // 画像入りの参照画像ノードを追加 (D&D / Ctrl+V 用)
+  const addImageNode = useCallback(
+    (flowPos, image, fileName) => {
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: makeId("imageInput", nds),
+          type: "imageInput",
+          position: flowPos,
+          ...INIT_SIZE.imageInput,
+          data: { image, fileName },
+        },
+      ]);
+    },
+    [setNodes]
+  );
+
+  // 画像ファイルのドラッグ&ドロップでノード化
+  const onDrop = useCallback(
+    (e) => {
+      const files = [...(e.dataTransfer?.files || [])].filter((f) =>
+        f.type.startsWith("image/")
+      );
+      if (files.length === 0) return;
+      e.preventDefault();
+      const { clientX, clientY } = e;
+      files.forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const pos = screenToFlowPosition({
+            x: clientX + i * 40,
+            y: clientY + i * 40,
+          });
+          addImageNode(pos, reader.result, file.name);
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [screenToFlowPosition, addImageNode]
+  );
+
+  // クリップボードの画像を Ctrl+V でノード化 (画面中央に置く)
+  useEffect(() => {
+    const onPaste = (e) => {
+      const t = e.target;
+      // テキスト入力中は通常の貼り付けを邪魔しない
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const items = [...(e.clipboardData?.items || [])].filter((it) =>
+        it.type.startsWith("image/")
+      );
+      if (items.length === 0) return;
+      e.preventDefault();
+      const rect = wrapperRef.current.getBoundingClientRect();
+      items.forEach((it, i) => {
+        const file = it.getAsFile();
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const pos = screenToFlowPosition({
+            x: rect.left + rect.width / 2 + i * 40,
+            y: rect.top + rect.height / 2 + i * 40,
+          });
+          addImageNode(pos, reader.result, file.name || "クリップボード画像");
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [screenToFlowPosition, addImageNode]);
 
   const addNode = useCallback(
     (type) => {
@@ -136,6 +288,7 @@ function Flow({ workspaceId, onBack }) {
             id: makeId(type, nds),
             type,
             position: { x: 240 + offset, y: 220 + offset },
+            ...(INIT_SIZE[type] || {}),
             data: makeDefaults(type),
           },
         ];
@@ -145,7 +298,12 @@ function Flow({ workspaceId, onBack }) {
   );
 
   return (
-    <div className="app" ref={wrapperRef}>
+    <div
+      className="app"
+      ref={wrapperRef}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDrop}
+    >
       <header className="toolbar">
         <button className="tool-btn back-btn" onClick={onBack} title="ワークスペース一覧へ戻る">
           ←
@@ -171,7 +329,7 @@ function Flow({ workspaceId, onBack }) {
           </button>
         </div>
         <div className="toolbar-right">
-          <span className="toolbar-hint">線にカーソルを合わせてハサミで切断 / ノードは選択して Backspace で削除</span>
+          <span className="toolbar-hint">右クリックでノード追加 / 画像はドロップ・Ctrl+Vでも置ける</span>
           <KeyPanel />
         </div>
       </header>
@@ -184,6 +342,7 @@ function Flow({ workspaceId, onBack }) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
+          onPaneContextMenu={onPaneContextMenu}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
@@ -203,29 +362,34 @@ function Flow({ workspaceId, onBack }) {
         </ReactFlow>
       )}
 
-      {connectMenu && (
+      {menu && (
         <div
           className="connect-menu"
           ref={menuRef}
-          style={{ left: connectMenu.x, top: connectMenu.y }}
+          style={{ left: menu.x, top: menu.y }}
         >
-          <button className="connect-menu-btn" onClick={addGenerateFromMenu}>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {menu.kind === "connect" ? (
+            <button
+              className="connect-menu-btn"
+              onClick={() => addNodeAt("generate", menu.flow, menu.sourceId)}
             >
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <circle cx="8.5" cy="10" r="1.5" />
-              <path d="M21 15l-5-5-9 9" />
-            </svg>
-            画像生成ツールを追加
-          </button>
+              <MenuIcon name="spark" />
+              画像生成ツールを追加
+            </button>
+          ) : (
+            CONTEXT_ITEMS.map((item) => (
+              <React.Fragment key={item.type}>
+                {item.divider && <div className="connect-menu-divider" />}
+                <button
+                  className="connect-menu-btn"
+                  onClick={() => addNodeAt(item.type, menu.flow)}
+                >
+                  <MenuIcon name={item.icon} />
+                  {item.label}
+                </button>
+              </React.Fragment>
+            ))
+          )}
         </div>
       )}
     </div>
