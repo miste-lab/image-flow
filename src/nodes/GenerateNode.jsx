@@ -117,7 +117,7 @@ export default function GenerateNode({ id, data }) {
 
       <div className="node-header">
         <span className="node-dot dot-generate" />
-        生成 — gpt-image-2
+        生成 #{idNum(id)} — gpt-image-2
       </div>
 
       {refChips.length > 0 && (

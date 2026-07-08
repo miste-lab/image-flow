@@ -49,8 +49,18 @@ const initialEdges = [
   { id: "e1", source: "prompt-1", target: "generate-1", type: "deletable" },
 ];
 
-let idCounter = 2;
-const nextId = (prefix) => `${prefix}-${++idCounter}`;
+// 空いている最小番号でIDを作る (ノードを消すとその番号が再利用される)
+const makeId = (type, nds) => {
+  const used = new Set();
+  for (const n of nds) {
+    if (n.type !== type) continue;
+    const m = n.id.match(/(\d+)$/);
+    if (m) used.add(Number(m[1]));
+  }
+  let i = 1;
+  while (used.has(i)) i++;
+  return `${type}-${i}`;
+};
 
 // ノード種別ごとの初期データ (毎回新しいオブジェクトを返す)
 const makeDefaults = (type) =>
@@ -108,7 +118,7 @@ function Flow() {
   // メニューから生成ノードを追加して、線を引いた元ノードと接続
   const addGenerateFromMenu = useCallback(() => {
     if (!connectMenu) return;
-    const newId = nextId("generate");
+    const newId = makeId("generate", nodes);
     setNodes((nds) => [
       ...nds,
       {
@@ -123,21 +133,23 @@ function Flow() {
       { id: `e-${connectMenu.sourceId}-${newId}`, source: connectMenu.sourceId, target: newId, type: "deletable" },
     ]);
     setConnectMenu(null);
-  }, [connectMenu, setNodes, setEdges]);
+  }, [connectMenu, nodes, setNodes, setEdges]);
 
   const addNode = useCallback(
     (type) => {
-      // 画面中央あたりに少しずらしながら配置
-      const offset = (idCounter % 5) * 32;
-      setNodes((nds) => [
-        ...nds,
-        {
-          id: nextId(type),
-          type,
-          position: { x: 240 + offset, y: 220 + offset },
-          data: makeDefaults(type),
-        },
-      ]);
+      setNodes((nds) => {
+        // 画面中央あたりに少しずらしながら配置
+        const offset = (nds.length % 5) * 32;
+        return [
+          ...nds,
+          {
+            id: makeId(type, nds),
+            type,
+            position: { x: 240 + offset, y: 220 + offset },
+            data: makeDefaults(type),
+          },
+        ];
+      });
     },
     [setNodes]
   );
@@ -182,13 +194,13 @@ function Flow() {
         deleteKeyCode={["Backspace", "Delete"]}
         colorMode="dark"
       >
-        <Background gap={22} size={1.2} color="#232a38" />
+        <Background gap={22} size={1.2} color="#232327" />
         <Controls position="bottom-left" />
         <MiniMap
           pannable
           zoomable
-          nodeColor={() => "#2c3550"}
-          maskColor="rgba(8, 10, 16, 0.75)"
+          nodeColor={() => "#2a2a2e"}
+          maskColor="rgba(8, 8, 10, 0.8)"
         />
       </ReactFlow>
 

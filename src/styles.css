@@ -1,22 +1,24 @@
 /* ===== Image Flow — dark node editor theme =====
-   palette:
-   --ink       #0b0e14  キャンバス
-   --surface   #141926  ノード面
-   --line      #232a38  罫線・グリッド
-   --text      #dfe5f1  本文
-   --muted     #7c879c  補助テキスト
-   --accent    #7aa2ff  接続・実行(青)
-   --warm      #f0b35c  画像系のしるし(琥珀)
+   palette (黒基調 + グリーンアクセント / Spaces風):
+   --ink         #0e0e10  キャンバス (ほぼ黒・青みなし)
+   --surface     #17171a  ノード面
+   --line        #2a2a2f  罫線・グリッド
+   --text        #e6e6e9  本文
+   --muted       #85878f  補助テキスト
+   --accent      #2bd97e  接続・実行 (緑)
+   --accent-deep #17b562  緑の濃い側 (グラデ用)
+   --warm        #f0b35c  警告のしるし (キー未設定など)
 */
 
 :root {
-  --ink: #0b0e14;
-  --surface: #141926;
-  --surface-2: #1b2232;
-  --line: #232a38;
-  --text: #dfe5f1;
-  --muted: #7c879c;
-  --accent: #7aa2ff;
+  --ink: #0e0e10;
+  --surface: #17171a;
+  --surface-2: #202024;
+  --line: #2a2a2f;
+  --text: #e6e6e9;
+  --muted: #85878f;
+  --accent: #2bd97e;
+  --accent-deep: #17b562;
   --warm: #f0b35c;
   --danger: #ff7a7a;
   --radius: 12px;
@@ -46,7 +48,7 @@ html, body, #root {
   align-items: center;
   gap: 20px;
   padding: 10px 18px;
-  background: rgba(11, 14, 20, 0.9);
+  background: rgba(14, 14, 16, 0.92);
   border-bottom: 1px solid var(--line);
   z-index: 10;
 }
@@ -64,8 +66,8 @@ html, body, #root {
   width: 10px;
   height: 10px;
   border-radius: 3px;
-  background: linear-gradient(135deg, var(--accent), #4a6adf);
-  box-shadow: 0 0 10px rgba(122, 162, 255, 0.6);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 0 10px rgba(43, 217, 126, 0.55);
 }
 
 .brand-model {
@@ -92,8 +94,8 @@ html, body, #root {
 }
 .tool-btn:hover { border-color: var(--accent); }
 .tool-btn.accent {
-  background: rgba(122, 162, 255, 0.14);
-  border-color: rgba(122, 162, 255, 0.45);
+  background: rgba(43, 217, 126, 0.12);
+  border-color: rgba(43, 217, 126, 0.4);
 }
 
 .toolbar-right {
@@ -122,7 +124,7 @@ html, body, #root {
   top: calc(100% + 8px);
   right: 0;
   width: 300px;
-  background: #10141f;
+  background: #131316;
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
@@ -158,9 +160,9 @@ html, body, #root {
 }
 
 .key-save-btn {
-  background: linear-gradient(135deg, #5f86f2, #4a6adf);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border: none;
-  color: #fff;
+  color: #08130c;
   font-weight: 700;
   font-size: 12px;
   padding: 7px 18px;
@@ -214,9 +216,9 @@ html, body, #root {
 
 .node-dot { width: 8px; height: 8px; border-radius: 50%; }
 .dot-prompt { background: var(--accent); }
-.dot-image { background: var(--warm); }
+.dot-image { background: var(--accent); }
 .dot-generate {
-  background: linear-gradient(135deg, var(--accent), var(--warm));
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
 /* ---------- prompt node ---------- */
@@ -261,7 +263,7 @@ html, body, #root {
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.upload-area:hover { border-color: var(--warm); }
+.upload-area:hover { border-color: var(--accent); }
 .upload-sub { font-size: 10.5px; color: var(--muted); }
 
 .image-preview-wrap { padding: 10px; }
@@ -294,7 +296,7 @@ html, body, #root {
   padding: 3px 9px;
   cursor: pointer;
 }
-.mini-btn:hover { border-color: var(--warm); }
+.mini-btn:hover { border-color: var(--accent); }
 
 /* ---------- generate node ---------- */
 .node-generate { width: 320px; }
@@ -312,16 +314,16 @@ html, body, #root {
   gap: 5px;
   font-size: 10.5px;
   font-weight: 600;
-  color: #6fdc8c;
-  background: rgba(111, 220, 140, 0.08);
-  border: 1px solid rgba(111, 220, 140, 0.3);
+  color: var(--accent);
+  background: rgba(43, 217, 126, 0.08);
+  border: 1px solid rgba(43, 217, 126, 0.3);
   border-radius: 999px;
   padding: 3px 9px;
 }
 .ref-tag {
   font-family: ui-monospace, "SF Mono", Consolas, monospace;
   font-size: 10px;
-  color: rgba(111, 220, 140, 0.75);
+  color: rgba(43, 217, 126, 0.75);
 }
 
 .result-area {
@@ -400,9 +402,9 @@ html, body, #root {
 
 .run-btn {
   flex: 1;
-  background: linear-gradient(135deg, #5f86f2, #4a6adf);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border: none;
-  color: #fff;
+  color: #08130c;
   font-weight: 700;
   font-size: 13px;
   padding: 9px 0;
@@ -453,7 +455,7 @@ html, body, #root {
   position: absolute;
   transform: translate(-8px, -50%);
   z-index: 60;
-  background: #10141f;
+  background: #131316;
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
@@ -503,7 +505,7 @@ html, body, #root {
 .edge-scissors.visible { opacity: 1; }
 .edge-scissors:hover {
   background: var(--accent);
-  color: #0b0e14;
+  color: var(--ink);
 }
 
 /* ---------- ratio select ---------- */
@@ -556,7 +558,7 @@ html, body, #root {
   width: 240px;
   max-height: 320px;
   overflow-y: auto;
-  background: #10141f;
+  background: #131316;
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
@@ -579,7 +581,7 @@ html, body, #root {
   text-align: left;
 }
 .ratio-item:hover { background: var(--surface-2); }
-.ratio-item.active { background: rgba(122, 162, 255, 0.12); }
+.ratio-item.active { background: rgba(43, 217, 126, 0.12); }
 .ratio-item .ratio-check { margin-left: 6px; }
 
 /* ---------- count stepper ---------- */
