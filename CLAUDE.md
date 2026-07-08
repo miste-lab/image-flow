@@ -1,7 +1,8 @@
 # Image Flow — プロジェクト引き継ぎメモ
 
 ## これは何か
-gpt-image-2 (OpenAIの画像生成モデル) をノードベースUIで操作するブラウザツール。
+画像生成 (gpt-image-2 / Seedream 5.0 Lite) と動画生成 (Seedance 2.0) を
+ノードベースUIで操作するブラウザツール。
 ComfyUI / Flora 系の「ノードを線でつないで実行する」体験を個人利用向けに再現したもの。
 Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に引き継いだ。
 
@@ -12,8 +13,11 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 
 ## 現在の構成 (v0.2 / GitHub Pages版)
 - **完全静的**: Vite + React + @xyflow/react (React Flow v12)。サーバーなし
-- ブラウザから直接 api.openai.com を叩く (src/api.js)
-- APIキーはツールバー右上のKeyPanelで入力し、localStorageにのみ保存
+- ブラウザから直接 api.openai.com (src/api.js) と queue.fal.run (src/fal.js) を叩く
+- APIキーはツールバー右上のKeyPanelで入力し、localStorageにのみ保存。
+  OpenAIキーと fal.aiキーの2枠 (どちらもBYOK。保存方法の設定は共通)
+- fal.aiはすべてキューAPI: 送信 → status_url をポーリング → response_url で結果取得。
+  ステータス/結果のURLは送信レスポンスのものをそのまま使うこと (自前で組み立てない)
 - `base: "./"` 設定済みで GitHub Pages のサブパス配信に対応
 - `.github/workflows/deploy.yml` で main への push 時に自動ビルド&デプロイ
 - リポジトリはPublic前提(キーはコードに含まれない設計)
@@ -30,6 +34,11 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   キャンバスへのD&D・Ctrl+V(クリップボード画像)でも作成できる
 - **memo** (MemoNode): 付箋メモ。接続ハンドルなし、×ボタンで削除、リサイズ可。琥珀系の配色
 - **generate** (GenerateNode):
+  - ヘッダにモデル切替 (ModelSelect.jsx。各選択肢に概算単価を小さく表示):
+    gpt-image-2 ($0.006〜0.21/枚・品質依存) / Seedream 5.0 Lite ($0.035/枚固定)
+  - Seedream は fal.ai 経由 (text-to-image / 画像入力ありは edit)。
+    カスタムサイズは最低約370万pxの制約があるため、比率プリセットを2倍して送る。
+    品質セレクトは gpt-image-2 専用 (Seedream選択時はdisabled)
   - ノード内にプロンプト入力欄がある。接続したプロンプトノードの内容と改行で結合される
     (接続分が先、ノード自身の欄が後)
   - 生成結果はノード内に表示しない (2026-07-08変更。表示はジョブグリッドと履歴が担当)。
@@ -42,6 +51,17 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
     「辺が16の倍数・最小総ピクセル」を満たすピクセル値にマップ済み)
   - 品質 auto/low/medium/high、枚数1〜3 (ステッパー。2026-07-09に上限4→3。
     旧データに4が残っていても表示時に丸める)
+- **videoGen** (VideoGenNode): 動画生成 (2026-07-09追加、Seedance 2.0 / fal.ai経由)。
+  - モデル切替: standard (約$0.30/秒) / fast (約$0.24/秒) / mini (約$0.15/秒)。単価は720p時
+  - エンドポイントの振り分け: mini は reference-to-video のみ提供なので常にそれを使う。
+    standard/fast は画像0枚→text-to-video、1枚→image-to-video、2枚以上→reference-to-video (最大9枚)
+  - パラメータ: 解像度480p/720p、長さ 自動/4〜15秒、比率 (画像入力時は送らない・画像優先)、
+    音声生成ON/OFF (generate_audio。音声の有無で料金は変わらない)
+  - 生成はキューでポーリング (3秒間隔)。ノード内に「キュー待ち(n番目)/生成中…」と経過時間を表示
+  - 完了したら <video controls> でノード内プレビュー + mp4保存ボタン。
+    動画は fal のURL (data.videoUrl) をそのまま保持。履歴/ジョブグリッドには入らない
+  - コストが画像より高い旨の注記をノード内に常時表示
+  - プロンプト/画像の接続方式・自前プロンプト欄は generate と同じ
 - **jobGrid** (JobGridNode): ジョブグリッド (2026-07-08追加)。
   - 生成ノードの出力をつなぐと、そのノードの生成履歴がサムネイルの2列グリッドで並ぶ
     (新しい順。複数の生成ノードを1つのグリッドにつないでもよい)
@@ -147,3 +167,14 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 - 最後に「ほんの少しだけ離して」で半径16→19に微調整して確定。
   あわせて表示条件を「ノード全体のホバー」から「角まわりのホバーのみ」に変更
   (カーソルを離すとフェードアウトで消える)
+
+### 2026-07-09 (4回目): Seedance 2.0 動画生成 + モデル切替
+- ユーザー要望で fal.ai 連携を追加 (BYOK・ブラウザ直叩き、キーはKeyPanelの2枠目)
+- fal のモデル一覧を調査した結果 (2026-07時点):
+  - Seedance 2.0: standard / fast / mini の3種。miniは reference-to-video のみ。
+    解像度は480p/720pのみ (公称)。音声同時生成対応、料金は音声の有無で同じ
+  - Seedream 5.0: fal提供は Lite のみ ($0.035/枚)。上位版は未提供 → 選択肢はLiteだけ
+- 動画生成ノード (videoGen) と、生成系ノードのモデル切替ドロップダウン
+  (ModelSelect.jsx・概算単価の小さな表示付き) を新設
+- 動画は履歴DBに入れていない (fal URLをノードに保持するだけ)。
+  URLの保存期限が切れる可能性はあるので、必要になったら動画の履歴保存を検討

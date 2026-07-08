@@ -18,6 +18,7 @@ const THUMB_SIZE = {
   prompt: [280, 170],
   imageInput: [230, 210],
   generate: [320, 260],
+  videoGen: [340, 330],
   jobGrid: [340, 400],
   memo: [260, 190],
 };

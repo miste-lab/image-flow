@@ -3,6 +3,7 @@
 // 送信先は api.openai.com のみ。他のサーバーには一切送られない。
 
 const KEY_STORAGE = "openai_api_key";
+const FAL_KEY_STORAGE = "fal_api_key";
 const MODE_STORAGE = "openai_key_storage_mode"; // "local" | "session"
 const MODEL = "gpt-image-2";
 
@@ -32,10 +33,27 @@ export function setApiKey(key) {
   if (key) activeStore().setItem(KEY_STORAGE, key.trim());
 }
 
+// fal.ai のキー (OpenAIとは別枠。保存方法の設定は共通)
+export function getFalKey() {
+  return (
+    sessionStorage.getItem(FAL_KEY_STORAGE) ||
+    localStorage.getItem(FAL_KEY_STORAGE) ||
+    ""
+  );
+}
+
+export function setFalKey(key) {
+  sessionStorage.removeItem(FAL_KEY_STORAGE);
+  localStorage.removeItem(FAL_KEY_STORAGE);
+  if (key) activeStore().setItem(FAL_KEY_STORAGE, key.trim());
+}
+
 export function setKeyStorageMode(mode) {
   const key = getApiKey();
+  const falKey = getFalKey();
   localStorage.setItem(MODE_STORAGE, mode);
   setApiKey(key); // 既存のキーを新しい保存先へ移す
+  setFalKey(falKey);
 }
 
 async function dataUrlToBlob(dataUrl) {

@@ -1,9 +1,17 @@
 import React, { useCallback } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import RatioSelect from "./RatioSelect.jsx";
+import ModelSelect from "./ModelSelect.jsx";
 import { generateImages } from "../api.js";
+import { generateImagesSeedream } from "../fal.js";
 import { addHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
+
+// 画像モデルの選択肢 (単価はドロップダウンに小さく表示される概算)
+const IMAGE_MODELS = [
+  { value: "gpt-image-2", label: "gpt-image-2", price: "$0.006〜0.21/枚" },
+  { value: "seedream-lite", label: "Seedream 5.0 Lite", price: "$0.035/枚" },
+];
 
 const QUALITIES = [
   { value: "auto", label: "品質: 自動" },
@@ -42,6 +50,7 @@ export default function GenerateNode({ id, data }) {
   // 上限3枚 (旧データに4が残っていてもここで丸める)
   const count = Math.min(data.count ?? 1, MAX_COUNT);
   const resolution = data.resolution ?? "auto";
+  const model = data.model ?? "gpt-image-2";
 
   // 接続中の画像ソースをタグ付きで列挙 (表示用)。
   // collectInputs と同じエッジ順で数えるので @img:n が実際の送信順と一致する
@@ -139,13 +148,23 @@ export default function GenerateNode({ id, data }) {
     }
 
     try {
-      const list = await generateImages({
-        prompt,
-        images,
-        size,
-        quality: data.quality,
-        n: count,
-      });
+      // モデルに応じて OpenAI / fal.ai を使い分ける
+      const list =
+        model === "seedream-lite"
+          ? await generateImagesSeedream({
+              prompt,
+              images,
+              size: data.size,
+              resolution,
+              n: count,
+            })
+          : await generateImages({
+              prompt,
+              images,
+              size,
+              quality: data.quality,
+              n: count,
+            });
       // results は下流ノードへのチェーン用に保持する (ノード内には表示しない)
       updateNodeData(id, { results: list, loading: false, error: null });
       // 履歴に記録 → つながっているジョブグリッドと、ポータルの履歴一覧に反映される
@@ -153,7 +172,7 @@ export default function GenerateNode({ id, data }) {
     } catch (err) {
       updateNodeData(id, { loading: false, error: err.message });
     }
-  }, [id, data.uid, data.size, data.quality, resolution, count, collectInputs, ensureJobGrid, updateNodeData]);
+  }, [id, data.uid, data.size, data.quality, model, resolution, count, collectInputs, ensureJobGrid, updateNodeData]);
 
   const setCount = (delta) => {
     updateNodeData(id, { count: Math.min(MAX_COUNT, Math.max(1, count + delta)) });
@@ -192,7 +211,13 @@ export default function GenerateNode({ id, data }) {
 
       <div className="node-header">
         <span className="node-dot dot-generate" />
-        生成 #{idNum(id)} — gpt-image-2
+        生成 #{idNum(id)}
+        <ModelSelect
+          value={model}
+          options={IMAGE_MODELS}
+          onChange={(m) => updateNodeData(id, { model: m })}
+          title="画像モデルを切り替える"
+        />
       </div>
 
       {refChips.length > 0 && (
@@ -233,6 +258,8 @@ export default function GenerateNode({ id, data }) {
         <select
           value={data.quality}
           onChange={(e) => updateNodeData(id, { quality: e.target.value })}
+          disabled={model === "seedream-lite"}
+          title={model === "seedream-lite" ? "品質指定は gpt-image-2 のみ (Seedreamは固定単価)" : undefined}
         >
           {QUALITIES.map((q) => (
             <option key={q.value} value={q.value}>{q.label}</option>

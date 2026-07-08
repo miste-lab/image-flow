@@ -14,6 +14,7 @@ import {
 import PromptNode from "./nodes/PromptNode.jsx";
 import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
+import VideoGenNode from "./nodes/VideoGenNode.jsx";
 import JobGridNode from "./nodes/JobGridNode.jsx";
 import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
@@ -28,6 +29,7 @@ const nodeTypes = {
   prompt: PromptNode,
   imageInput: ImageInputNode,
   generate: GenerateNode,
+  videoGen: VideoGenNode,
   jobGrid: JobGridNode,
   memo: MemoNode,
 };
@@ -43,6 +45,7 @@ const CONTEXT_ITEMS = [
   { type: "prompt", label: "プロンプトを追加", icon: "text" },
   { type: "imageInput", label: "参照画像を追加", icon: "image" },
   { type: "generate", label: "画像生成ツールを追加", icon: "spark" },
+  { type: "videoGen", label: "動画生成ツールを追加", icon: "video" },
   { type: "jobGrid", label: "ジョブグリッドを追加", icon: "grid" },
   { type: "memo", label: "付箋メモを追加", icon: "note", divider: true },
 ];
@@ -82,6 +85,12 @@ function MenuIcon({ name }) {
         <rect x="14" y="3" width="7" height="7" rx="1.5" />
         <rect x="3" y="14" width="7" height="7" rx="1.5" />
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </>
+    ),
+    video: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M10 9.5v5l4.5-2.5z" />
       </>
     ),
   };
@@ -127,6 +136,10 @@ function Flow({ workspaceId, onBack }) {
             ...node,
             data: { ...node.data, uid: crypto.randomUUID(), prompt: node.data?.prompt ?? "" },
           };
+        }
+        // 生成中のままタブを閉じた場合に「生成中…」で固まらないようリセット
+        if ((node.type === "generate" || node.type === "videoGen") && node.data?.loading) {
+          node = { ...node, data: { ...node.data, loading: false, status: null } };
         }
         return node;
       });
@@ -373,6 +386,9 @@ function Flow({ workspaceId, onBack }) {
           <button className="tool-btn accent" onClick={() => addNode("generate")}>
             ＋ 生成ノード
           </button>
+          <button className="tool-btn" onClick={() => addNode("videoGen")}>
+            ＋ 動画
+          </button>
         </div>
         <div className="toolbar-right">
           <span className="toolbar-hint">右クリックでノード追加 / 画像はドロップ・Ctrl+Vでも置ける</span>
@@ -424,6 +440,13 @@ function Flow({ workspaceId, onBack }) {
               >
                 <MenuIcon name="spark" />
                 画像生成ツールを追加
+              </button>
+              <button
+                className="connect-menu-btn"
+                onClick={() => addNodeAt("videoGen", menu.flow, menu.sourceId)}
+              >
+                <MenuIcon name="video" />
+                動画生成ツールを追加
               </button>
               {/* 生成ノードの出力からはジョブグリッドも作れる */}
               {menu.sourceType === "generate" && (

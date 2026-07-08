@@ -8,7 +8,8 @@ export const makeDefaults = (type) =>
     memo: { text: "" },
     // uid はノード固有のID。履歴とジョブグリッドが「どの生成ノードの結果か」を
     // 判別するのに使う (表示用IDの generate-1 などは番号が再利用されるため不可)
-    generate: { uid: crypto.randomUUID(), prompt: "", size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
+    generate: { uid: crypto.randomUUID(), prompt: "", model: "gpt-image-2", size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
+    videoGen: { uid: crypto.randomUUID(), prompt: "", model: "standard", resolution: "720p", duration: "auto", aspect: "auto", audio: true, videoUrl: null, loading: false, status: null, error: null },
     jobGrid: {},
   })[type];
 
