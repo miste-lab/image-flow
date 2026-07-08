@@ -11,9 +11,9 @@ const idNum = (nodeId) => (String(nodeId).match(/(\d+)$/) || [])[1] || "?";
 export default function JobGridNode({ id }) {
   const { getNode } = useReactFlow();
 
-  // 入力は生成ノードのみ受け付ける
+  // 入力は画像生成・動画生成ノードを受け付ける
   const acceptGenerate = useCallback(
-    (conn) => getNode(conn.source)?.type === "generate",
+    (conn) => ["generate", "videoGen"].includes(getNode(conn.source)?.type),
     [getNode]
   );
 
@@ -25,7 +25,7 @@ export default function JobGridNode({ id }) {
       for (const e of s.edges) {
         if (e.target !== id) continue;
         const src = s.nodeLookup.get(e.source);
-        if (src?.type !== "generate") continue;
+        if (!["generate", "videoGen"].includes(src?.type)) continue;
         if (src.data?.uid) uids.push(src.data.uid);
         if (src.data?.loading) loading = true;
       }
@@ -57,12 +57,12 @@ export default function JobGridNode({ id }) {
     };
   }, [uidsKey]);
 
-  // フル解像度の画像を取り出してダウンロード
+  // フル解像度のメディアを取り出してダウンロード (画像=png / 動画=mp4)
   const save = async (h) => {
     const full = (await getHistoryImage(h.id)) || h.thumb;
     const a = document.createElement("a");
     a.href = full;
-    a.download = `image-flow-${h.ts}.png`;
+    a.download = `image-flow-${h.ts}.${h.kind === "video" ? "mp4" : "png"}`;
     a.click();
   };
 
@@ -122,8 +122,9 @@ export default function JobGridNode({ id }) {
                 title={`ダブルクリックで拡大\n${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
                 onDoubleClick={() => openImageViewer(h)}
               >
-                <img className="jobgrid-img" src={h.thumb} alt="生成画像" />
-                <button className="cell-save" title="この画像を保存" onClick={() => save(h)}>
+                <img className="jobgrid-img" src={h.thumb} alt={h.kind === "video" ? "生成動画" : "生成画像"} />
+                {h.kind === "video" && <span className="media-badge">▶</span>}
+                <button className="cell-save" title={h.kind === "video" ? "この動画を保存" : "この画像を保存"} onClick={() => save(h)}>
                   ↓
                 </button>
               </div>

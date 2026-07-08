@@ -210,8 +210,8 @@ export default function GenerateNode({ id, data }) {
       </Handle>
 
       <div className="node-header">
-        <span className="node-dot dot-generate" />
-        生成 #{idNum(id)}
+        <span className="node-dot dot-image-gen" />
+        画像 #{idNum(id)}
         <ModelSelect
           value={model}
           options={IMAGE_MODELS}

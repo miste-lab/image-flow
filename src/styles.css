@@ -272,6 +272,10 @@ html, body, #root {
 .dot-generate {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
+/* 画像生成ノードの赤丸 (ユーザー指定) */
+.dot-image-gen {
+  background: linear-gradient(135deg, #ff6b6b, #e03131);
+}
 
 /* ---------- prompt node (リサイズ可能) ---------- */
 .node-prompt {
@@ -611,14 +615,22 @@ html, body, #root {
   background: rgba(167, 139, 250, 0.15);
 }
 
-/* 生成ノードの入力側: 左下に固定で縦に並べる */
+/* 生成ノードの入力側: 左下の角に寄せて縦に並べる */
 .react-flow__handle.io-handle-left {
   right: auto;
   left: -13px;
   top: auto;
 }
-.react-flow__handle.io-target-prompt { bottom: 92px; }
-.react-flow__handle.io-target-image { bottom: 52px; }
+.react-flow__handle.io-target-prompt { bottom: 52px; }
+.react-flow__handle.io-target-image { bottom: 16px; }
+
+/* 動画生成ノードは プロンプト/開始画像/終了画像 の3つ */
+.node-videogen .io-target-prompt { bottom: 88px; }
+.node-videogen .io-target-image { bottom: 52px; }
+.node-videogen .io-target-end { bottom: 16px; }
+
+/* アップスケールノードの動画入力 */
+.react-flow__handle.io-target-video { bottom: 16px; }
 
 /* ---------- resize grip (ノード右下・枠の外側の弧) ---------- */
 .resize-grip {
@@ -1409,3 +1421,40 @@ html, body, #root {
 
 /* KeyPanel の2枠目の見出し */
 .key-title-second { margin-top: 12px; }
+
+/* ---------- upscale node ---------- */
+.node-upscale { width: 340px; }
+
+.dot-upscale {
+  background: linear-gradient(135deg, #5cc8ff, #2b8ad9);
+}
+
+.upscale-hint {
+  margin: 10px;
+  padding: 18px 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 11.5px;
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* サムネイル上の動画マーク (ジョブグリッド・履歴) */
+.media-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(11, 14, 20, 0.8);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 10px;
+  pointer-events: none;
+}

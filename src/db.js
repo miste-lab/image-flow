@@ -82,6 +82,61 @@ export async function addHistory({ uid, prompt, images }) {
   window.dispatchEvent(new Event("history-changed"));
 }
 
+// 動画の先頭フレームから一覧用サムネイルを作る
+function makeVideoThumb(blobUrl, max = 384) {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.muted = true;
+    v.preload = "auto";
+    v.onloadeddata = () => {
+      try { v.currentTime = 0.05; } catch { resolve(null); }
+    };
+    v.onseeked = () => {
+      try {
+        const scale = Math.min(1, max / Math.max(v.videoWidth, v.videoHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(v.videoWidth * scale));
+        c.height = Math.max(1, Math.round(v.videoHeight * scale));
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.82));
+      } catch {
+        resolve(null);
+      }
+    };
+    v.onerror = () => resolve(null);
+    v.src = blobUrl;
+  });
+}
+
+// サムネイルが作れなかったとき用の代替 (▶マーク入りの黒い板)
+const FALLBACK_VIDEO_THUMB =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="384" height="216"><rect width="100%" height="100%" fill="#131316"/><path d="M172 78v60l52-30z" fill="#85878f"/></svg>'
+  );
+
+// 動画1本を履歴に追加する。動画本体は dataURL で historyImages に保存
+// (falのURLは期限切れの可能性があるため、取り込んでおく)
+export async function addVideoHistory({ uid, prompt, videoUrl }) {
+  const blob = await (await fetch(videoUrl)).blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const thumb = (await makeVideoThumb(blobUrl)) || FALLBACK_VIDEO_THUMB;
+  URL.revokeObjectURL(blobUrl);
+  const video = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+
+  const id = crypto.randomUUID();
+  await withStore(HISTORY, "readwrite", (s) =>
+    s.put({ id, jobId: crypto.randomUUID(), uid, prompt, ts: Date.now(), thumb, kind: "video" })
+  );
+  await withStore(HISTORY_IMG, "readwrite", (s) => s.put({ id, image: video }));
+  window.dispatchEvent(new Event("history-changed"));
+}
+
 export const listHistory = () => withStore(HISTORY, "readonly", (s) => s.getAll());
 
 export const getHistoryImage = async (id) => {

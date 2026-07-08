@@ -18,7 +18,8 @@ const THUMB_SIZE = {
   prompt: [280, 170],
   imageInput: [230, 210],
   generate: [320, 260],
-  videoGen: [340, 330],
+  videoGen: [340, 380],
+  upscale: [340, 250],
   jobGrid: [340, 400],
   memo: [260, 190],
 };
@@ -125,12 +126,12 @@ function HistorySection() {
     return () => window.removeEventListener("history-changed", refresh);
   }, [refresh]);
 
-  // フル解像度を取り出してダウンロード
+  // フル解像度を取り出してダウンロード (画像=png / 動画=mp4)
   const save = async (h) => {
     const full = (await getHistoryImage(h.id)) || h.thumb;
     const a = document.createElement("a");
     a.href = full;
-    a.download = `image-flow-${h.ts}.png`;
+    a.download = `image-flow-${h.ts}.${h.kind === "video" ? "mp4" : "png"}`;
     a.click();
   };
 
@@ -178,7 +179,8 @@ function HistorySection() {
               title={`${h.prompt || ""}\n${new Date(h.ts).toLocaleString()}`}
             >
               <button className="history-open" onClick={() => openImageViewer(h)}>
-                <img className="history-img" src={h.thumb} alt="生成画像" loading="lazy" />
+                <img className="history-img" src={h.thumb} alt={h.kind === "video" ? "生成動画" : "生成画像"} loading="lazy" />
+                {h.kind === "video" && <span className="media-badge">▶</span>}
               </button>
               <div className="history-actions">
                 <button className="ws-act" title="この画像を保存" onClick={() => save(h)}>

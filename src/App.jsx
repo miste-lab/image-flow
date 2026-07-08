@@ -15,6 +15,7 @@ import PromptNode from "./nodes/PromptNode.jsx";
 import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
 import VideoGenNode from "./nodes/VideoGenNode.jsx";
+import UpscaleNode from "./nodes/UpscaleNode.jsx";
 import JobGridNode from "./nodes/JobGridNode.jsx";
 import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
@@ -30,6 +31,7 @@ const nodeTypes = {
   imageInput: ImageInputNode,
   generate: GenerateNode,
   videoGen: VideoGenNode,
+  upscale: UpscaleNode,
   jobGrid: JobGridNode,
   memo: MemoNode,
 };
@@ -46,6 +48,7 @@ const CONTEXT_ITEMS = [
   { type: "imageInput", label: "参照画像を追加", icon: "image" },
   { type: "generate", label: "画像生成ツールを追加", icon: "spark" },
   { type: "videoGen", label: "動画生成ツールを追加", icon: "video" },
+  { type: "upscale", label: "アップスケールを追加", icon: "up" },
   { type: "jobGrid", label: "ジョブグリッドを追加", icon: "grid" },
   { type: "memo", label: "付箋メモを追加", icon: "note", divider: true },
 ];
@@ -93,6 +96,12 @@ function MenuIcon({ name }) {
         <path d="M10 9.5v5l4.5-2.5z" />
       </>
     ),
+    up: (
+      <>
+        <path d="M12 19V5" />
+        <path d="M5 12l7-7 7 7" />
+      </>
+    ),
   };
   return (
     <svg
@@ -138,7 +147,7 @@ function Flow({ workspaceId, onBack }) {
           };
         }
         // 生成中のままタブを閉じた場合に「生成中…」で固まらないようリセット
-        if ((node.type === "generate" || node.type === "videoGen") && node.data?.loading) {
+        if (["generate", "videoGen", "upscale"].includes(node.type) && node.data?.loading) {
           node = { ...node, data: { ...node.data, loading: false, status: null } };
         }
         return node;
@@ -248,7 +257,9 @@ function Flow({ workspaceId, onBack }) {
         // 追加するノードと接続元の種類に応じて入力口を選ぶ
         const srcType = nodes.find((n) => n.id === sourceId)?.type;
         const targetHandle =
-          type === "jobGrid" ? "jobs" : srcType === "prompt" ? "prompt" : "image";
+          type === "jobGrid" ? "jobs"
+          : type === "upscale" ? "video"
+          : srcType === "prompt" ? "prompt" : "image";
         setEdges((eds) => [
           ...eds,
           {
@@ -434,22 +445,35 @@ function Flow({ workspaceId, onBack }) {
         >
           {menu.kind === "connect" ? (
             <>
-              <button
-                className="connect-menu-btn"
-                onClick={() => addNodeAt("generate", menu.flow, menu.sourceId)}
-              >
-                <MenuIcon name="spark" />
-                画像生成ツールを追加
-              </button>
-              <button
-                className="connect-menu-btn"
-                onClick={() => addNodeAt("videoGen", menu.flow, menu.sourceId)}
-              >
-                <MenuIcon name="video" />
-                動画生成ツールを追加
-              </button>
-              {/* 生成ノードの出力からはジョブグリッドも作れる */}
-              {menu.sourceType === "generate" && (
+              {/* 接続元の種類に応じて、つなげるノードだけを出す */}
+              {menu.sourceType !== "videoGen" && (
+                <>
+                  <button
+                    className="connect-menu-btn"
+                    onClick={() => addNodeAt("generate", menu.flow, menu.sourceId)}
+                  >
+                    <MenuIcon name="spark" />
+                    画像生成ツールを追加
+                  </button>
+                  <button
+                    className="connect-menu-btn"
+                    onClick={() => addNodeAt("videoGen", menu.flow, menu.sourceId)}
+                  >
+                    <MenuIcon name="video" />
+                    動画生成ツールを追加
+                  </button>
+                </>
+              )}
+              {menu.sourceType === "videoGen" && (
+                <button
+                  className="connect-menu-btn"
+                  onClick={() => addNodeAt("upscale", menu.flow, menu.sourceId)}
+                >
+                  <MenuIcon name="up" />
+                  アップスケールを追加
+                </button>
+              )}
+              {(menu.sourceType === "generate" || menu.sourceType === "videoGen") && (
                 <button
                   className="connect-menu-btn"
                   onClick={() => addNodeAt("jobGrid", menu.flow, menu.sourceId)}

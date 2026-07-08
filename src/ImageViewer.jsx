@@ -41,11 +41,20 @@ export default function ImageViewer() {
       // dataURL の base64 部分の長さからファイルサイズを概算 (4文字 ≒ 3バイト)
       const b64 = url.split(",")[1] || "";
       setBytes(Math.round((b64.length * 3) / 4));
-      const probe = new Image();
-      probe.onload = () => {
-        if (alive) setDim({ w: probe.naturalWidth, h: probe.naturalHeight });
-      };
-      probe.src = url;
+      if (item.kind === "video") {
+        const probe = document.createElement("video");
+        probe.preload = "metadata";
+        probe.onloadedmetadata = () => {
+          if (alive) setDim({ w: probe.videoWidth, h: probe.videoHeight });
+        };
+        probe.src = url;
+      } else {
+        const probe = new Image();
+        probe.onload = () => {
+          if (alive) setDim({ w: probe.naturalWidth, h: probe.naturalHeight });
+        };
+        probe.src = url;
+      }
     });
     const onKey = (e) => {
       if (e.key === "Escape") setItem(null);
@@ -59,11 +68,13 @@ export default function ImageViewer() {
 
   if (!item) return null;
 
+  const isVideo = item.kind === "video";
+
   const save = () => {
     if (!full) return;
     const a = document.createElement("a");
     a.href = full;
-    a.download = `image-flow-${item.ts}.png`;
+    a.download = `image-flow-${item.ts}.${isVideo ? "mp4" : "png"}`;
     a.click();
   };
 
@@ -71,10 +82,12 @@ export default function ImageViewer() {
     <div className="viewer-backdrop" onClick={() => setItem(null)}>
       <div className="viewer-panel" onClick={(e) => e.stopPropagation()}>
         <div className="viewer-stage">
-          {full ? (
-            <img className="viewer-image" src={full} alt="生成画像" />
-          ) : (
+          {!full ? (
             <span className="spinner" />
+          ) : isVideo ? (
+            <video className="viewer-image" src={full} controls autoPlay loop />
+          ) : (
+            <img className="viewer-image" src={full} alt="生成画像" />
           )}
         </div>
         <aside className="viewer-side">
@@ -99,7 +112,7 @@ export default function ImageViewer() {
             </div>
           </dl>
           <button className="viewer-save-btn" onClick={save} disabled={!full}>
-            ↓ PNGを保存
+            ↓ {isVideo ? "MP4" : "PNG"}を保存
           </button>
         </aside>
       </div>

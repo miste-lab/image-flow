@@ -33,7 +33,8 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 - **imageInput** (ImageInputNode): ローカル画像をdataURLで保持。リサイズ可(画像はobject-fit:containでアスペクト比維持)。
   キャンバスへのD&D・Ctrl+V(クリップボード画像)でも作成できる
 - **memo** (MemoNode): 付箋メモ。接続ハンドルなし、×ボタンで削除、リサイズ可。琥珀系の配色
-- **generate** (GenerateNode):
+- **generate** (GenerateNode): ヘッダ表記は「画像 #n」+ 赤丸 (2026-07-09ユーザー指定。
+  緑丸はプロンプト/画像入力、赤丸=画像生成、紫系=動画、水色=アップスケールで区別)
   - ヘッダにモデル切替 (ModelSelect.jsx。各選択肢に概算単価を小さく表示):
     gpt-image-2 ($0.006〜0.21/枚・品質依存) / Seedream 5.0 Lite ($0.035/枚固定)
   - Seedream は fal.ai 経由 (text-to-image / 画像入力ありは edit)。
@@ -52,19 +53,38 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   - 品質 auto/low/medium/high、枚数1〜3 (ステッパー。2026-07-09に上限4→3。
     旧データに4が残っていても表示時に丸める)
 - **videoGen** (VideoGenNode): 動画生成 (2026-07-09追加、Seedance 2.0 / fal.ai経由)。
+  - 入力ハンドルは3つ: プロンプト / 開始画像 (id="image") / 終了画像 (id="endImage")。
+    終了画像は開始画像とセットで image-to-video の end_image_url に渡す
+    (開始なしで終了だけ・Miniで終了画像はエラーメッセージを出す)
+  - 出力ハンドルあり: ジョブグリッド (生成結果が並ぶ) やアップスケールへつなぐ。
+    生成実行時にジョブグリッド未接続なら自動作成 (generateと同じ)
+  - 本数1〜3 (ステッパー)。複数本は並列でキューに投げ、「(1/3本 完了) 生成中…」とまとめ表示。
+    結果は data.videoUrls (配列。旧 videoUrl からは読み替え)
+  - 生成した動画は履歴DBにも取り込む (db.js addVideoHistory。動画本体をdataURL保存+
+    先頭フレームをサムネイル化、kind:"video")。falのURL期限切れ対策
   - モデル切替: standard (約$0.30/秒) / fast (約$0.24/秒) / mini (約$0.15/秒)。単価は720p時
   - エンドポイントの振り分け: mini は reference-to-video のみ提供なので常にそれを使う。
-    standard/fast は画像0枚→text-to-video、1枚→image-to-video、2枚以上→reference-to-video (最大9枚)
+    standard/fast は画像0枚→text-to-video、1枚or終了画像あり→image-to-video、
+    2枚以上→reference-to-video (最大9枚)
   - パラメータ: 解像度480p/720p、長さ 自動/4〜15秒、比率 (画像入力時は送らない・画像優先)、
     音声生成ON/OFF (generate_audio。音声の有無で料金は変わらない)
-  - 生成はキューでポーリング (3秒間隔)。ノード内に「キュー待ち(n番目)/生成中…」と経過時間を表示
-  - 完了したら <video controls> でノード内プレビュー + mp4保存ボタン。
-    動画は fal のURL (data.videoUrl) をそのまま保持。履歴/ジョブグリッドには入らない
+  - キューのステータスは IN_QUEUE=「順番待ち (n番目)」/ IN_PROGRESS=「生成中…」で表示し分け
+    (fal.js queueStatusLabel)。経過時間も表示
   - コストが画像より高い旨の注記をノード内に常時表示
-  - プロンプト/画像の接続方式・自前プロンプト欄は generate と同じ
+- **upscale** (UpscaleNode): 動画アップスケール (2026-07-09追加、fal.ai経由)。
+  - 入力: videoGen の出力のみ (最初の1本を使う)。出力ハンドルはない
+  - モデル切替: Topaz Video AI (fal-ai/topaz/upscale/video) /
+    SeedVR2 (fal-ai/seedvr/upscale/video、AI生成動画向け・$0.001/百万px)
+  - パラメータ: 出力解像度 1080p/1440p/2160p、フレームレート 24/30/60fps。
+    fps指定はTopazのみ (SeedVR2選択時はdisabled・元動画のまま)
+  - Topazは倍率指定のAPIなので、元動画の高さをメタデータから調べて倍率を計算する
+    (probeVideoHeight)。H264_output:true にしてブラウザで再生できる形式にする。
+    SeedVR2は upscale_mode:"target" + target_resolution で直接指定
+  - Topaz概算 (ユーザー提供): 〜720p $0.01/秒・〜1080p $0.02/秒・4K $0.08/秒、60fpsで約2倍
 - **jobGrid** (JobGridNode): ジョブグリッド (2026-07-08追加)。
-  - 生成ノードの出力をつなぐと、そのノードの生成履歴がサムネイルの2列グリッドで並ぶ
-    (新しい順。複数の生成ノードを1つのグリッドにつないでもよい)
+  - 画像生成・動画生成の両ノードをつなげる。そのノードの生成履歴がサムネイルの
+    2列グリッドで並ぶ (新しい順。複数の生成ノードを1つのグリッドにつないでもよい)。
+    動画のサムネイルには▶バッジが付き、ダブルクリックでビューアが動画再生になる
   - 画像はノードデータに持たず、IndexedDBの履歴を data.uid で引いて表示する。
     生成完了時の "history-changed" イベントで自動更新
   - リサイズ可。ホバーで個別保存ボタン (保存時はフル解像度を取り出す)
@@ -178,3 +198,17 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   (ModelSelect.jsx・概算単価の小さな表示付き) を新設
 - 動画は履歴DBに入れていない (fal URLをノードに保持するだけ)。
   URLの保存期限が切れる可能性はあるので、必要になったら動画の履歴保存を検討
+  (→ 同日の5回目で履歴保存を実装済み)
+
+### 2026-07-09 (5回目): 動画まわりの拡充とアップスケール
+- ユーザー要望で実装:
+  (1) 入力ハンドルをノードの左下角に寄せた (プロンプトbottom52/画像16。動画は88/52/16)
+  (2) 動画生成ノードに開始画像/終了画像の専用ハンドル (i2vの image_url / end_image_url)
+  (3) 動画生成ノードに出力ハンドル+ジョブグリッド対応。動画も履歴DBに保存
+      (blob取り込み+フレームサムネイル、kind:"video"。ビューア・履歴・保存すべて動画対応)
+  (4) 動画の本数指定1〜3 (並列キュー投入)
+  (5) 画像生成ノードのヘッダを「生成→画像」に変更、丸を緑→赤に
+  (6) アップスケールノード新規 (Topaz / SeedVR2)。falのSeedVR2エンドポイントは
+      fal-ai/seedvr/upscale/video で確認済み (target_resolution直接指定可・fps指定なし)
+  (7) キューステータスの表示し分け:「順番待ち (n番目)」/「生成中…」
+- 実際のfal課金を伴う生成・アップスケールは未検証 (ユーザーのキーでの実測待ち)
