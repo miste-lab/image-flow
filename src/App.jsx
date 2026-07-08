@@ -369,7 +369,7 @@ function Flow({ workspaceId, onBack }) {
           deleteKeyCode={["Backspace", "Delete"]}
           colorMode="dark"
         >
-          <Background gap={22} size={1.2} color="#1e1e21" />
+          <Background gap={22} size={1.4} color="#333338" />
           <Controls position="bottom-left" />
           <MiniMap
             pannable

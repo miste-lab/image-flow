@@ -1,6 +1,6 @@
 /* ===== Image Flow — dark node editor theme =====
    palette (黒基調 + グリーンアクセント / Spaces風):
-   --ink         #09090b  キャンバス・背景 (指定の黒)
+   --ink         #050506  キャンバス・背景 (ほぼ純黒)
    --surface     #131316  ノード面
    --line        #26262b  罫線・グリッド
    --text        #e6e6e9  本文
@@ -11,7 +11,7 @@
 */
 
 :root {
-  --ink: #09090b;
+  --ink: #050506;
   --surface: #131316;
   --surface-2: #1c1c20;
   --line: #26262b;
@@ -48,7 +48,7 @@ html, body, #root {
   align-items: center;
   gap: 20px;
   padding: 10px 18px;
-  background: rgba(9, 9, 11, 0.92);
+  background: rgba(5, 5, 6, 0.92);
   border-bottom: 1px solid var(--line);
   z-index: 10;
 }
