@@ -16,6 +16,9 @@ import ImageInputNode from "./nodes/ImageInputNode.jsx";
 import GenerateNode from "./nodes/GenerateNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
 import DeletableEdge from "./edges/DeletableEdge.jsx";
+import Portal from "./Portal.jsx";
+import { makeDefaults, makeId } from "./defaults.js";
+import { getWorkspace, putWorkspace } from "./db.js";
 
 const nodeTypes = {
   prompt: PromptNode,
@@ -29,52 +32,39 @@ const edgeTypes = {
 
 const defaultEdgeOptions = { type: "deletable" };
 
-// 起動時のサンプル構成: プロンプト → 生成
-const initialNodes = [
-  {
-    id: "prompt-1",
-    type: "prompt",
-    position: { x: 80, y: 160 },
-    data: { text: "" },
-  },
-  {
-    id: "generate-1",
-    type: "generate",
-    position: { x: 460, y: 100 },
-    data: { size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
-  },
-];
-
-const initialEdges = [
-  { id: "e1", source: "prompt-1", target: "generate-1", type: "deletable" },
-];
-
-// 空いている最小番号でIDを作る (ノードを消すとその番号が再利用される)
-const makeId = (type, nds) => {
-  const used = new Set();
-  for (const n of nds) {
-    if (n.type !== type) continue;
-    const m = n.id.match(/(\d+)$/);
-    if (m) used.add(Number(m[1]));
-  }
-  let i = 1;
-  while (used.has(i)) i++;
-  return `${type}-${i}`;
-};
-
-// ノード種別ごとの初期データ (毎回新しいオブジェクトを返す)
-const makeDefaults = (type) =>
-  ({
-    prompt: { text: "" },
-    imageInput: { image: null, fileName: null },
-    generate: { size: "auto", quality: "auto", resolution: "auto", count: 1, results: [], loading: false, error: null },
-  })[type];
-
-function Flow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+function Flow({ workspaceId, onBack }) {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [wsName, setWsName] = useState("");
+  const [ready, setReady] = useState(false);
   const wrapperRef = useRef(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  // ワークスペースを IndexedDB から読み込む
+  useEffect(() => {
+    let alive = true;
+    getWorkspace(workspaceId).then((ws) => {
+      if (!alive) return;
+      if (!ws) {
+        onBack(); // 存在しないIDなら一覧へ戻す
+        return;
+      }
+      setNodes(ws.nodes || []);
+      setEdges(ws.edges || []);
+      setWsName(ws.name || "無題");
+      setReady(true);
+    });
+    return () => { alive = false; };
+  }, [workspaceId, onBack, setNodes, setEdges]);
+
+  // 変更を自動保存 (0.6秒デバウンス)
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(() => {
+      putWorkspace({ id: workspaceId, name: wsName, updatedAt: Date.now(), nodes, edges });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [nodes, edges, wsName, ready, workspaceId]);
 
   // 線を何もない場所で離したときに出す「ノード追加」メニュー
   const [connectMenu, setConnectMenu] = useState(null);
@@ -157,10 +147,17 @@ function Flow() {
   return (
     <div className="app" ref={wrapperRef}>
       <header className="toolbar">
+        <button className="tool-btn back-btn" onClick={onBack} title="ワークスペース一覧へ戻る">
+          ←
+        </button>
         <div className="brand">
           <span className="brand-mark" />
-          Image Flow
-          <span className="brand-model">gpt-image-2</span>
+          <input
+            className="ws-name-input"
+            value={wsName}
+            onChange={(e) => setWsName(e.target.value)}
+            title="ワークスペース名 (クリックで編集)"
+          />
         </div>
         <div className="toolbar-actions">
           <button className="tool-btn" onClick={() => addNode("prompt")}>
@@ -179,30 +176,32 @@ function Flow() {
         </div>
       </header>
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onConnectEnd={onConnectEnd}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        fitView
-        proOptions={{ hideAttribution: false }}
-        deleteKeyCode={["Backspace", "Delete"]}
-        colorMode="dark"
-      >
-        <Background gap={22} size={1.2} color="#232327" />
-        <Controls position="bottom-left" />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor={() => "#2a2a2e"}
-          maskColor="rgba(8, 8, 10, 0.8)"
-        />
-      </ReactFlow>
+      {ready && (
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          proOptions={{ hideAttribution: false }}
+          deleteKeyCode={["Backspace", "Delete"]}
+          colorMode="dark"
+        >
+          <Background gap={22} size={1.2} color="#1e1e21" />
+          <Controls position="bottom-left" />
+          <MiniMap
+            pannable
+            zoomable
+            nodeColor={() => "#26262a"}
+            maskColor="rgba(6, 6, 8, 0.8)"
+          />
+        </ReactFlow>
+      )}
 
       {connectMenu && (
         <div
@@ -234,9 +233,29 @@ function Flow() {
 }
 
 export default function App() {
+  // URLハッシュ (#w=ID) で開いているワークスペースを覚える
+  const [route, setRoute] = useState(() => {
+    const m = window.location.hash.match(/^#w=(.+)$/);
+    return m ? { page: "editor", id: decodeURIComponent(m[1]) } : { page: "portal" };
+  });
+
+  const openWorkspace = useCallback((id) => {
+    window.location.hash = `w=${encodeURIComponent(id)}`;
+    setRoute({ page: "editor", id });
+  }, []);
+
+  const goPortal = useCallback(() => {
+    window.location.hash = "";
+    setRoute({ page: "portal" });
+  }, []);
+
+  if (route.page === "portal") {
+    return <Portal onOpen={openWorkspace} />;
+  }
+
   return (
     <ReactFlowProvider>
-      <Flow />
+      <Flow key={route.id} workspaceId={route.id} onBack={goPortal} />
     </ReactFlowProvider>
   );
 }
