@@ -13,29 +13,29 @@ export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
       style={{
         background: "transparent",
         border: "none",
-        width: 28,
-        height: 28,
-        // 掴める範囲ごと枠の外側へ出す (選択時の緑枠とも重ならない距離)
+        width: 24,
+        height: 24,
+        // ノードの角にSVGの左上が一致するよう、サイズぶんだけ外へ出す
         left: "auto",
         top: "auto",
-        right: -30,
-        bottom: -30,
+        right: -24,
+        bottom: -24,
         transform: "none",
         translate: "none", // React Flow既定の translate(-50%) を打ち消す
       }}
     >
       <svg
         className="resize-grip"
-        width="18"
-        height="18"
-        viewBox="0 0 18 18"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.6"
+        strokeWidth="3.2"
         strokeLinecap="round"
       >
-        {/* 角の外側を回る 1/4 円弧 */}
-        <path d="M3 15 A 12 12 0 0 0 15 3" />
+        {/* ノードの角(SVG左上のやや外)を中心とした同心円の1/4弧 */}
+        <path d="M17 2 A 15 15 0 0 1 2 17" />
       </svg>
     </NodeResizeControl>
   );
