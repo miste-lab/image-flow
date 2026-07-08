@@ -630,9 +630,8 @@ html, body, #root {
   opacity: 0;
   transition: opacity 0.15s, color 0.15s;
 }
-/* ノード(またはつまみ自身)にカーソルが乗っているときだけ見せる */
-.react-flow__node:hover .resize-grip,
-.react-flow__node.selected .resize-grip {
+/* ノード右下の角まわり(つまみの反応範囲)にカーソルが来たときだけ見せる。離れたら消える */
+.react-flow__resize-control:hover .resize-grip {
   opacity: 1;
 }
 .node:hover .resize-grip { color: var(--accent); }

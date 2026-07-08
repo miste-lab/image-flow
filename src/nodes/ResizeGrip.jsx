@@ -35,8 +35,8 @@ export default function ResizeGrip({ minWidth = 200, minHeight = 120 }) {
         strokeWidth="3.2"
         strokeLinecap="round"
       >
-        {/* 枠の丸角(border-radius 12)と中心を揃えた1/4弧。半径16=枠の丸み+すき間 */}
-        <path d="M18 2 A 16 16 0 0 1 2 18" />
+        {/* 枠の丸角(border-radius 12)と中心を揃えた1/4弧。半径19=枠の丸み+すき間 */}
+        <path d="M21 2 A 19 19 0 0 1 2 21" />
       </svg>
     </NodeResizeControl>
   );
