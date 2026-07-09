@@ -4,14 +4,14 @@ import ModelSelect from "./ModelSelect.jsx";
 import { generateVideoSeedance, queueStatusLabel } from "../fal.js";
 import { addVideoHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
-import { estimateVideoUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
+import { VIDEO_MODELS, estimateVideoUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
 
-// 動画モデルの選択肢 (単価はドロップダウンに小さく表示される概算・720p時)
-const VIDEO_MODELS = [
-  { value: "standard", label: "Seedance 2.0", price: "約$0.30/秒" },
-  { value: "fast", label: "Seedance 2.0 Fast", price: "約$0.24/秒" },
-  { value: "mini", label: "Seedance 2.0 Mini", price: "約$0.15/秒" },
-];
+// モデル定義 (pricing.js) → ドロップダウンの選択肢 (単価は720p時の概算)
+const MODEL_OPTIONS = VIDEO_MODELS.map((m) => ({
+  value: m.value,
+  label: m.label,
+  price: m.priceHint,
+}));
 
 const RESOLUTIONS = [
   { value: "480p", label: "480p" },
@@ -284,7 +284,7 @@ export default function VideoGenNode({ id, data }) {
         動画 #{idNum(id)}
         <ModelSelect
           value={model}
-          options={VIDEO_MODELS}
+          options={MODEL_OPTIONS}
           onChange={(m) => updateNodeData(id, { model: m })}
           title="動画モデルを切り替える (単価は720p時の概算)"
         />

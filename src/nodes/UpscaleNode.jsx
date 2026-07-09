@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ModelSelect from "./ModelSelect.jsx";
 import { upscaleVideo, queueStatusLabel, probeVideoMeta } from "../fal.js";
-import { estimateUpscaleUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
+import { UPSCALE_MODELS, estimateUpscaleUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
 
-// アップスケールモデルの選択肢
-const UPSCALE_MODELS = [
-  { value: "topaz", label: "Topaz Video AI", price: "$0.01〜0.08/秒" },
-  { value: "seedvr", label: "SeedVR2 (AI動画向け)", price: "$0.001/百万px" },
-];
+// モデル定義 (pricing.js) → ドロップダウンの選択肢
+const MODEL_OPTIONS = UPSCALE_MODELS.map((m) => ({
+  value: m.value,
+  label: m.label,
+  price: m.priceHint,
+}));
 
 const RESOLUTIONS = ["1080p", "1440p", "2160p"];
 const FPS_OPTIONS = ["24", "30", "60"];
@@ -140,7 +141,7 @@ export default function UpscaleNode({ id, data }) {
         動画アップスケール #{idNum(id)}
         <ModelSelect
           value={model}
-          options={UPSCALE_MODELS}
+          options={MODEL_OPTIONS}
           onChange={(m) => updateNodeData(id, { model: m })}
           title="アップスケールモデルを切り替える"
         />

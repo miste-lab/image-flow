@@ -4,21 +4,80 @@
 
 import { useEffect, useState } from "react";
 
-/* ---------- 単価テーブル (USD) ---------- */
+/* ---------- モデル定義 + 単価テーブル (USD) ----------
+   新しいモデルが出たら、下の配列にエントリを1つ足すだけで
+   ノードのドロップダウンに出て、コスト概算も効くようになる。 */
 
-// 画像: 1枚あたり。gpt-image-2 は品質別 (1024×1024基準)
-export const IMAGE_PRICING = {
-  "gpt-image-2": { low: 0.006, medium: 0.053, high: 0.211, auto: 0.053 },
-  "seedream-lite": 0.035, // 解像度によらず固定
-};
+// 画像モデル。provider: "openai" は api.js、"fal" は fal.js (endpoints必須) を使う
+export const IMAGE_MODELS = [
+  {
+    value: "gpt-image-2",
+    label: "gpt-image-2",
+    provider: "openai",
+    priceHint: "$0.006〜0.21/枚",
+  },
+  {
+    value: "seedream-lite",
+    label: "Seedream 5.0 Lite",
+    provider: "fal",
+    priceHint: "$0.035/枚",
+    perImage: 0.035, // 解像度によらず固定
+    endpoints: {
+      t2i: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+      edit: "fal-ai/bytedance/seedream/v5/lite/edit",
+    },
+  },
+  {
+    value: "seedream-pro",
+    label: "Seedream 5.0 Pro",
+    provider: "fal",
+    priceHint: "$0.0675/枚",
+    perImage: 0.0675,
+    autoMax2K: true, // Proのautoプリセットは auto_2K まで (auto_3K/4Kなし)
+    endpoints: {
+      t2i: "bytedance/seedream/v5/pro/text-to-image",
+      edit: "bytedance/seedream/v5/pro/edit",
+    },
+  },
+];
 
-// 動画 (Seedance 2.0): 生成1秒あたり。
-// 480pの standard/fast は公表値がないため、720p単価×面積比(約0.44)からの推定値
-export const VIDEO_PRICING = {
-  standard: { "480p": 0.135, "720p": 0.3034 },
-  fast: { "480p": 0.108, "720p": 0.2419 },
-  mini: { "480p": 0.0721, "720p": 0.1547 },
-};
+// gpt-image-2 の品質別単価 (1024×1024基準)
+export const GPT_IMAGE_PRICING = { low: 0.006, medium: 0.053, high: 0.211, auto: 0.053 };
+
+// 動画モデル (fal)。base + /text-to-video 等でエンドポイントになる。
+// referenceOnly: true は reference-to-video しか提供されないモデル (Mini)。
+// 480pの standard/fast は公表値がないため、720p単価×面積比(約0.44)からの推定値。
+// ★ Seedance 2.5 がリリースされたら、ここにエントリを足すだけでよい ★
+export const VIDEO_MODELS = [
+  {
+    value: "standard",
+    label: "Seedance 2.0",
+    priceHint: "約$0.30/秒",
+    base: "bytedance/seedance-2.0",
+    perSecond: { "480p": 0.135, "720p": 0.3034 },
+  },
+  {
+    value: "fast",
+    label: "Seedance 2.0 Fast",
+    priceHint: "約$0.24/秒",
+    base: "bytedance/seedance-2.0/fast",
+    perSecond: { "480p": 0.108, "720p": 0.2419 },
+  },
+  {
+    value: "mini",
+    label: "Seedance 2.0 Mini",
+    priceHint: "約$0.15/秒",
+    base: "bytedance/seedance-2.0/mini",
+    referenceOnly: true,
+    perSecond: { "480p": 0.0721, "720p": 0.1547 },
+  },
+];
+
+// 動画アップスケールモデル
+export const UPSCALE_MODELS = [
+  { value: "topaz", label: "Topaz Video AI", priceHint: "$0.01〜0.08/秒" },
+  { value: "seedvr", label: "SeedVR2 (AI動画向け)", priceHint: "$0.001/百万px" },
+];
 
 // 「長さ: 自動」のときに見積もりに使う想定秒数
 export const VIDEO_AUTO_DURATION = 5;
@@ -34,15 +93,17 @@ export const UPSCALE_PRICING = {
 /* ---------- 見積もり計算 ---------- */
 
 export function estimateImageUsd({ model, quality = "auto", resolution = "auto", count = 1 }) {
-  if (model === "seedream-lite") return IMAGE_PRICING["seedream-lite"] * count;
-  const base = IMAGE_PRICING["gpt-image-2"][quality] ?? IMAGE_PRICING["gpt-image-2"].auto;
+  const def = IMAGE_MODELS.find((m) => m.value === model);
+  if (def?.perImage) return def.perImage * count; // fal系は枚数固定単価
+  const base = GPT_IMAGE_PRICING[quality] ?? GPT_IMAGE_PRICING.auto;
   // gpt-image-2 の料金はおよそピクセル数に比例するので、解像度倍率の2乗を掛ける
   const mult = resolution === "4k" ? 16 : resolution === "2k" ? 4 : 1;
   return base * mult * count;
 }
 
 export function estimateVideoUsd({ model, resolution = "720p", duration = "auto", count = 1 }) {
-  const per = VIDEO_PRICING[model]?.[resolution] ?? VIDEO_PRICING.standard["720p"];
+  const def = VIDEO_MODELS.find((m) => m.value === model) ?? VIDEO_MODELS[0];
+  const per = def.perSecond?.[resolution] ?? def.perSecond?.["720p"] ?? 0.3;
   const sec = duration === "auto" ? VIDEO_AUTO_DURATION : Number(duration) || VIDEO_AUTO_DURATION;
   return per * sec * count;
 }

@@ -6,13 +6,14 @@ import { generateImages } from "../api.js";
 import { generateImagesSeedream } from "../fal.js";
 import { addHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
-import { estimateImageUsd, useUsdJpy, fmtJpy } from "../pricing.js";
+import { IMAGE_MODELS, estimateImageUsd, useUsdJpy, fmtJpy } from "../pricing.js";
 
-// 画像モデルの選択肢 (単価はドロップダウンに小さく表示される概算)
-const IMAGE_MODELS = [
-  { value: "gpt-image-2", label: "gpt-image-2", price: "$0.006〜0.21/枚" },
-  { value: "seedream-lite", label: "Seedream 5.0 Lite", price: "$0.035/枚" },
-];
+// モデル定義 (pricing.js) → ドロップダウンの選択肢
+const MODEL_OPTIONS = IMAGE_MODELS.map((m) => ({
+  value: m.value,
+  label: m.label,
+  price: m.priceHint,
+}));
 
 const QUALITIES = [
   { value: "auto", label: "品質: 自動" },
@@ -159,9 +160,11 @@ export default function GenerateNode({ id, data }) {
 
     try {
       // モデルに応じて OpenAI / fal.ai を使い分ける
+      const isFal = IMAGE_MODELS.find((m) => m.value === model)?.provider === "fal";
       const list =
-        model === "seedream-lite"
+        isFal
           ? await generateImagesSeedream({
+              model,
               prompt,
               images,
               size: data.size,
@@ -224,7 +227,7 @@ export default function GenerateNode({ id, data }) {
         画像 #{idNum(id)}
         <ModelSelect
           value={model}
-          options={IMAGE_MODELS}
+          options={MODEL_OPTIONS}
           onChange={(m) => updateNodeData(id, { model: m })}
           title="画像モデルを切り替える"
         />
@@ -268,8 +271,8 @@ export default function GenerateNode({ id, data }) {
         <select
           value={data.quality}
           onChange={(e) => updateNodeData(id, { quality: e.target.value })}
-          disabled={model === "seedream-lite"}
-          title={model === "seedream-lite" ? "品質指定は gpt-image-2 のみ (Seedreamは固定単価)" : undefined}
+          disabled={model !== "gpt-image-2"}
+          title={model !== "gpt-image-2" ? "品質指定は gpt-image-2 のみ (Seedreamは固定単価)" : undefined}
         >
           {QUALITIES.map((q) => (
             <option key={q.value} value={q.value}>{q.label}</option>

@@ -3,6 +3,7 @@
 // キーは api.js の getFalKey (このブラウザ内にのみ保存、送信先は fal.run のみ)。
 
 import { getFalKey } from "./api.js";
+import { IMAGE_MODELS, VIDEO_MODELS } from "./pricing.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -74,16 +75,20 @@ async function toDataUrl(url) {
   });
 }
 
-/* ---------- 画像生成: Seedream 5.0 Lite ---------- */
+/* ---------- 画像生成: Seedream (Lite / Pro) ---------- */
 
-// prompt / images(dataURL配列) / size("WxH"|"auto") / resolution / n → dataURL配列。
+// model(IMAGE_MODELSのvalue) / prompt / images(dataURL配列) / size / resolution / n → dataURL配列。
 // 画像入力があれば edit、なければ text-to-image
-export async function generateImagesSeedream({ prompt, images = [], size, resolution, n = 1 }) {
+export async function generateImagesSeedream({ model = "seedream-lite", prompt, images = [], size, resolution, n = 1 }) {
+  const def =
+    IMAGE_MODELS.find((m) => m.value === model && m.provider === "fal") ??
+    IMAGE_MODELS.find((m) => m.value === "seedream-lite");
   // Seedreamのカスタムサイズは最低約370万px。比率プリセット(≒1MP)は2倍して2Kクラスにする
   let image_size;
   if (!size || size === "auto") {
     image_size =
       resolution === "4k" ? "auto_4K" : resolution === "2k" ? "auto_3K" : "auto_2K";
+    if (def.autoMax2K) image_size = "auto_2K"; // モデルが対応する上限に丸める
   } else {
     const [w, h] = size.split("x").map(Number);
     image_size = { width: w * 2, height: h * 2 };
@@ -96,9 +101,9 @@ export async function generateImagesSeedream({ prompt, images = [], size, resolu
     sync_mode: true, // 結果を dataURI で受け取る (URLの再取得が不要)
     enable_safety_checker: true,
   };
-  let endpoint = "fal-ai/bytedance/seedream/v5/lite/text-to-image";
+  let endpoint = def.endpoints.t2i;
   if (images.length > 0) {
-    endpoint = "fal-ai/bytedance/seedream/v5/lite/edit";
+    endpoint = def.endpoints.edit;
     input.image_urls = images.slice(0, 10); // 上限10枚
   }
 
@@ -134,8 +139,9 @@ export async function generateVideoSeedance({
   if (startImage && images.length > 0) {
     throw new Error("開始画像と参照画像は同時に使えません。どちらか一方をつないでください。");
   }
-  if (endImage && model === "mini") {
-    throw new Error("Seedance 2.0 Mini は終了画像に対応していません。standard か fast を選んでください。");
+  const def = VIDEO_MODELS.find((m) => m.value === model) ?? VIDEO_MODELS[0];
+  if (endImage && def.referenceOnly) {
+    throw new Error(`${def.label} は終了画像に対応していません。standard か fast を選んでください。`);
   }
 
   const hasAnyImage = !!startImage || images.length > 0;
@@ -146,15 +152,14 @@ export async function generateVideoSeedance({
     input.aspect_ratio = aspectRatio;
   }
 
-  // Mini は reference-to-video のみ提供。standard/fast は入力に応じて振り分ける
+  // referenceOnly(Mini)は常に reference-to-video。他は入力に応じて振り分ける
   let endpoint;
-  if (model === "mini") {
-    endpoint = "bytedance/seedance-2.0/mini/reference-to-video";
+  if (def.referenceOnly) {
+    endpoint = `${def.base}/reference-to-video`;
     const refs = startImage ? [startImage] : images;
     if (refs.length > 0) input.image_urls = refs.slice(0, 9);
   } else {
-    const base =
-      model === "fast" ? "bytedance/seedance-2.0/fast" : "bytedance/seedance-2.0";
+    const base = def.base;
     if (startImage) {
       // 開始(+終了)フレーム指定 → image-to-video
       endpoint = `${base}/image-to-video`;

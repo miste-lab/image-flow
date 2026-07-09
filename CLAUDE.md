@@ -36,10 +36,15 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 - **generate** (GenerateNode): ヘッダ表記は「画像 #n」+ 赤丸 (2026-07-09ユーザー指定。
   緑丸はプロンプト/画像入力、赤丸=画像生成、紫系=動画、水色=アップスケールで区別)
   - ヘッダにモデル切替 (ModelSelect.jsx。各選択肢に概算単価を小さく表示):
-    gpt-image-2 ($0.006〜0.21/枚・品質依存) / Seedream 5.0 Lite ($0.035/枚固定)
+    gpt-image-2 ($0.006〜0.21/枚・品質依存) / Seedream 5.0 Lite ($0.035/枚) /
+    Seedream 5.0 Pro ($0.0675/枚・2026-07-09にfal提供開始を確認して追加)
+  - モデルの選択肢・エンドポイント・単価は **pricing.js の IMAGE_MODELS / VIDEO_MODELS /
+    UPSCALE_MODELS に一元化**。新モデルはそこに1エントリ足すだけでドロップダウンと
+    コスト概算に反映される (Seedance 2.5 リリース時もここに足す)
   - Seedream は fal.ai 経由 (text-to-image / 画像入力ありは edit)。
     カスタムサイズは最低約370万pxの制約があるため、比率プリセットを2倍して送る。
-    品質セレクトは gpt-image-2 専用 (Seedream選択時はdisabled)
+    Proのautoプリセットは auto_2K まで (defの autoMax2K フラグで丸める)。
+    品質セレクトは gpt-image-2 専用 (fal系モデル選択時はdisabled)
   - ノード内にプロンプト入力欄がある。接続したプロンプトノードの内容と改行で結合される
     (接続分が先、ノード自身の欄が後)
   - 生成結果はノード内に表示しない (2026-07-08変更。表示はジョブグリッドと履歴が担当)。
@@ -141,13 +146,12 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 ## 未着手のアイデア(ユーザーと相談して優先度を決める)
 - ノードの右クリックメニュー
 - ワークスペースのJSONエクスポート/インポート (バックアップ・PC間の持ち運び用)
-- **Seedream 5.0 Pro のレイヤー分解** (2026-07-09調査・falに来たら実装):
-  Pro (2026-07-08発表) はレイヤー分離出力に対応しているが、提供は Volcano Engine
-  (doubao-seedream-5-0-pro-260628) / BytePlus (dola-seedream-5-0-pro-260628) のみで、
-  falは未提供 (fal-ai/bytedance/seedream/v5/pro/* は404)。
-  falに追加されたら: 画像生成ノードのモデル選択肢にPro追加 + Pro選択時のみ
-  「レイヤー分解ON」トグル表示 + 返ってきた各レイヤーを個別保存できるUI。
-  定期的に https://fal.ai/seedream-5.0 か fal.ai/explore/models を確認すること
+- **Seedream 5.0 Pro のレイヤー分解トグル** (2026-07-09時点では実装不可):
+  Pro自体は bytedance/seedream/v5/pro/* としてfal提供開始 → モデル選択肢に追加済み。
+  ただしfalの入出力スキーマに layer_decomposition 等のレイヤー系パラメータは
+  存在しない (出力もimages配列のみ)。falがレイヤー出力に対応したら:
+  Pro選択時のみ「レイヤー分解ON」トグル + 各レイヤーの個別保存を実装する。
+  API docs (fal.ai/models/bytedance/seedream/v5/pro/text-to-image/api) を再確認すること
 - 生成コストの概算表示
 - ドラッグでキャンバスに画像を直接ドロップしてimageInputノード化
 
@@ -242,3 +246,12 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
 - ユーザーから「Proがfalにあればレイヤー分解トグルを」との依頼で調査。
   Pro自体は前日発表・レイヤー分離対応だが、falは未提供のため実装見送り。
   詳細と再開手順は「未着手のアイデア」に記載
+
+### 2026-07-09 (8回目): Seedream 5.0 Pro 追加とモデル定義の一元化
+- 再調査したところ Pro が bytedance/seedream/v5/pro/* としてfalに登場していた
+  (7回目の調査から数時間で追加された模様) → 画像モデルの選択肢に追加 ($0.0675/枚)
+- レイヤー分離パラメータはfalのスキーマに無し → トグルは見送り (未着手のアイデア参照)
+- モデル定義 (選択肢・エンドポイント・単価) を pricing.js の
+  IMAGE_MODELS / VIDEO_MODELS / UPSCALE_MODELS に一元化。
+  Seedance 2.5 など新モデルは配列に1エントリ足すだけで反映される構造にした
+- reference-to-video は既存実装でカバー済み (参照画像2枚以上で自動的に使われる) を確認
