@@ -19,6 +19,7 @@ import UpscaleNode from "./nodes/UpscaleNode.jsx";
 import JobGridNode from "./nodes/JobGridNode.jsx";
 import MemoNode from "./nodes/MemoNode.jsx";
 import KeyPanel from "./nodes/KeyPanel.jsx";
+import UsagePanel from "./nodes/UsagePanel.jsx";
 import SettingsPanel from "./nodes/SettingsPanel.jsx";
 import DeletableEdge from "./edges/DeletableEdge.jsx";
 import Portal from "./Portal.jsx";
@@ -403,6 +404,7 @@ function Flow({ workspaceId, onBack }) {
         </div>
         <div className="toolbar-right">
           <span className="toolbar-hint">右クリックでノード追加 / 画像はドロップ・Ctrl+Vでも置ける</span>
+          <UsagePanel />
           <KeyPanel />
           <SettingsPanel />
         </div>

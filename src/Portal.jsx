@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import KeyPanel from "./nodes/KeyPanel.jsx";
+import UsagePanel from "./nodes/UsagePanel.jsx";
 import SettingsPanel from "./nodes/SettingsPanel.jsx";
 import {
   listWorkspaces,
@@ -239,6 +240,7 @@ export default function Portal({ onOpen }) {
           <span className="brand-model">gpt-image-2</span>
         </div>
         <div className="toolbar-right">
+          <UsagePanel />
           <KeyPanel />
           <SettingsPanel />
         </div>

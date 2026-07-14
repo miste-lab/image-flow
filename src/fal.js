@@ -75,6 +75,27 @@ async function toDataUrl(url) {
   });
 }
 
+/* ---------- アカウント残高 ---------- */
+
+// falのクレジット残高 (USD) を取得する。
+// ADMINスコープのキーが必要で、通常のAPIキーだと401/403になる → その場合は null を返し、
+// 呼び出し側は表示ごと隠す (CORSは開放されていることを確認済み)
+export async function getFalBalance() {
+  const key = getFalKey();
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.fal.ai/v1/account/billing?expand=credits", {
+      headers: { Authorization: `Key ${key}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const balance = data?.credits?.current_balance;
+    return typeof balance === "number" ? balance : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------- 画像生成: Seedream (Lite / Pro) ---------- */
 
 // model(IMAGE_MODELSのvalue) / prompt / images(dataURL配列) / size / resolution / n → dataURL配列。

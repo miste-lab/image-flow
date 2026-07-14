@@ -3,6 +3,7 @@ import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ModelSelect from "./ModelSelect.jsx";
 import { upscaleVideo, queueStatusLabel, probeVideoMeta } from "../fal.js";
 import { UPSCALE_MODELS, estimateUpscaleUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
+import { recordUsage } from "../usage.js";
 
 // モデル定義 (pricing.js) → ドロップダウンの選択肢
 const MODEL_OPTIONS = UPSCALE_MODELS.map((m) => ({
@@ -105,10 +106,20 @@ export default function UpscaleNode({ id, data }) {
         onStatus: (st) => updateNodeData(id, { status: queueStatusLabel(st) }),
       });
       updateNodeData(id, { videoUrl: url, loading: false, status: null, error: null });
+      // 使用額トラッカーに概算を積算
+      recordUsage({
+        model: UPSCALE_MODELS.find((m) => m.value === model)?.label ?? model,
+        usd: estimateUpscaleUsd({
+          model,
+          resolution: data.resolution ?? "1080p",
+          fps: data.fps ?? "30",
+          durationSec: srcMeta?.duration || 0,
+        }),
+      });
     } catch (err) {
       updateNodeData(id, { loading: false, status: null, error: err.message });
     }
-  }, [id, model, data.resolution, data.fps, collectVideo, updateNodeData]);
+  }, [id, model, data.resolution, data.fps, srcMeta, collectVideo, updateNodeData]);
 
   const save = async () => {
     if (!data.videoUrl) return;

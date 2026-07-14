@@ -1438,6 +1438,64 @@ html, body, #root {
 /* KeyPanel の2枠目の見出し */
 .key-title-second { margin-top: 12px; }
 
+/* ---------- usage panel (使用額トラッカー) ---------- */
+.usage-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.usage-balance {
+  color: var(--muted);
+  padding-right: 8px;
+  border-right: 1px solid var(--line);
+}
+
+.usage-popover { width: 280px; }
+
+.usage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  padding: 4px 2px;
+}
+.usage-row span:last-child { font-weight: 600; }
+
+.usage-balance-row {
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.usage-total {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-weight: 700;
+}
+
+.usage-empty {
+  color: var(--muted);
+  font-size: 11.5px;
+  padding: 10px 2px;
+  text-align: center;
+}
+
+/* 動画生成の完了ステータス (結果はジョブグリッドへ) */
+.video-done {
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(43, 217, 126, 0.08);
+  border: 1px solid rgba(43, 217, 126, 0.3);
+  color: var(--accent);
+  font-size: 11.5px;
+}
+
 /* ---------- upscale node ---------- */
 .node-upscale { width: 340px; }
 

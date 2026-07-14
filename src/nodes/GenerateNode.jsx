@@ -7,6 +7,7 @@ import { generateImagesSeedream } from "../fal.js";
 import { addHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
 import { IMAGE_MODELS, estimateImageUsd, useUsdJpy, fmtJpy } from "../pricing.js";
+import { recordUsage } from "../usage.js";
 
 // モデル定義 (pricing.js) → ドロップダウンの選択肢
 const MODEL_OPTIONS = IMAGE_MODELS.map((m) => ({
@@ -182,6 +183,11 @@ export default function GenerateNode({ id, data }) {
       updateNodeData(id, { results: list, loading: false, error: null });
       // 履歴に記録 → つながっているジョブグリッドと、ポータルの履歴一覧に反映される
       addHistory({ uid: data.uid, prompt, images: list });
+      // 使用額トラッカーに概算を積算
+      recordUsage({
+        model: IMAGE_MODELS.find((m) => m.value === model)?.label ?? model,
+        usd: estimateImageUsd({ model, quality: data.quality ?? "auto", resolution, count: list.length }),
+      });
     } catch (err) {
       updateNodeData(id, { loading: false, error: err.message });
     }

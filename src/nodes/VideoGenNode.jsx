@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ModelSelect from "./ModelSelect.jsx";
-import { generateVideo, queueStatusLabel } from "../fal.js";
+import { generateVideo, queueStatusLabel, probeVideoMeta } from "../fal.js";
 import { addVideoHistory } from "../db.js";
+import { recordUsage } from "../usage.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
 import { VIDEO_MODELS, estimateVideoUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
 
@@ -205,6 +206,13 @@ export default function VideoGenNode({ id, data }) {
             report();
             // 履歴に取り込む (ジョブグリッドとポータルの履歴に反映される)
             await addVideoHistory({ uid: data.uid, prompt, videoUrl: url }).catch(() => {});
+            // 使用額トラッカーに積算 (実際の動画の長さを測って秒単価×秒数で概算)
+            const meta = await probeVideoMeta(url).catch(() => null);
+            const sec =
+              meta?.duration ||
+              (duration === "auto" ? VIDEO_AUTO_DURATION : Number(duration) || VIDEO_AUTO_DURATION);
+            const per = def.perSecond?.[resolution] ?? def.perSecond?.["720p"] ?? 0;
+            recordUsage({ model: def.label, usd: per * sec });
             return url;
           })
         )
@@ -214,16 +222,6 @@ export default function VideoGenNode({ id, data }) {
       updateNodeData(id, { loading: false, status: null, error: err.message });
     }
   }, [id, model, count, resolution, duration, data.uid, data.aspect, data.audio, data.loop, collectInputs, ensureJobGrid, updateNodeData]);
-
-  // 動画をmp4としてダウンロード
-  const save = async (url, i) => {
-    const blob = await (await fetch(url)).blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `image-flow-video-${Date.now()}-${i + 1}.mp4`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
 
   const setCount = (delta) => {
     updateNodeData(id, { count: Math.min(MAX_COUNT, Math.max(1, count + delta)) });
@@ -311,27 +309,20 @@ export default function VideoGenNode({ id, data }) {
         onChange={(e) => updateNodeData(id, { prompt: e.target.value })}
       />
 
-      {/* 結果プレビュー / 進捗 */}
-      {(data.loading || videoUrls.length > 0) && (
+      {/* ステータスのみ表示。結果の閲覧・保存はジョブグリッド側に一本化 */}
+      {data.loading ? (
         <div className="video-result nodrag">
-          {data.loading ? (
-            <div className="video-progress">
-              <span className="spinner" />
-              <span>{data.status || "生成中…"}</span>
-              <span className="video-elapsed">{fmtElapsed}</span>
-            </div>
-          ) : (
-            videoUrls.map((url, i) => (
-              <React.Fragment key={i}>
-                <video className="video-preview" src={url} controls loop />
-                <button className="video-save-btn" onClick={() => save(url, i)} title="mp4として保存">
-                  ↓ 動画を保存{videoUrls.length > 1 ? ` (${i + 1})` : ""}
-                </button>
-              </React.Fragment>
-            ))
-          )}
+          <div className="video-progress">
+            <span className="spinner" />
+            <span>{data.status || "生成中…"}</span>
+            <span className="video-elapsed">{fmtElapsed}</span>
+          </div>
         </div>
-      )}
+      ) : videoUrls.length > 0 ? (
+        <div className="video-done" title="結果の再生・保存はジョブグリッドか履歴から">
+          ✓ {videoUrls.length}本 完了 — 結果はジョブグリッドへ
+        </div>
+      ) : null}
 
       {data.error && <div className="error-box">{data.error}</div>}
 

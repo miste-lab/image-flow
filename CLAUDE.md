@@ -70,6 +70,9 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
     結果は data.videoUrls (配列。旧 videoUrl からは読み替え)
   - 生成した動画は履歴DBにも取り込む (db.js addVideoHistory。動画本体をdataURL保存+
     先頭フレームをサムネイル化、kind:"video")。falのURL期限切れ対策
+  - ノード内に結果プレビューは出さない (2026-07-09変更。「✓ n本 完了」のステータスのみ。
+    再生・保存はジョブグリッド/履歴に一本化)。data.videoUrls は
+    アップスケールノードの入力用に保持し続ける
   - モデル切替: Seedance 2.0 standard (約$0.30/秒) / fast (約$0.24/秒) / mini (約$0.15/秒) /
     Vidu Q3 ($0.07/秒・720p以上は×2.2) / Vidu Q3 Turbo ($0.035/秒・720p以上は×2.2)
   - モデルは family でAPIの流儀が分かれる (fal.js generateVideo / pricing.js VIDEO_MODELS):
@@ -280,3 +283,17 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   viduの「360p+終了画像は不可」はエラーメッセージで案内
 - コスト表: Vidu Q3 360/540p $0.07/秒・720/1080p $0.154/秒、Turboは半額
 - Seedream 5.0 Pro は8回目で追加済み (今回の依頼と重複)
+
+### 2026-07-09 (10回目): 使用額トラッカーとfal残高表示
+- 動画生成ノードの結果プレビューを削除。「✓ n本 完了」ステータスのみ残し、
+  再生・保存はジョブグリッド/履歴に一本化
+- **fal残高API調査**: GET https://api.fal.ai/v1/account/billing?expand=credits
+  (Authorization: Key)。CORSは開放されておりブラウザから直接叩ける (401実測で確認)。
+  ただし**ADMINスコープのキーが必要**で、通常キーでは401/403 → その場合は表示ごと隠す。
+  OpenAIは残高APIなし (対象外)
+- **使用額トラッカー (src/usage.js)**: ジョブ完了ごとに概算USDを localStorage
+  ("usage_tracker") に日別・モデル別で積算。動画は完成した動画の実際の秒数を
+  メタデータから測って積算する (概算精度が上がる)
+- ツールバーに UsagePanel: 「今日 ¥○・月 ¥○」表示、クリックでモデル別内訳
+  (今月分・降順)・今日/今月合計・概算注記・リセットボタン。
+  fal残高が取れたときだけ「残高 $○○」も表示 (ポータル/エディタ両方)

@@ -214,5 +214,7 @@ export function useUsdJpy() {
   return rate;
 }
 
-export const fmtJpy = (usd, rate) =>
-  `約¥${Math.max(1, Math.round(usd * rate)).toLocaleString()}`;
+export const fmtJpy = (usd, rate) => {
+  if (!usd || usd <= 0) return "¥0";
+  return `約¥${Math.max(1, Math.round(usd * rate)).toLocaleString()}`;
+};
