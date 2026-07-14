@@ -44,32 +44,75 @@ export const IMAGE_MODELS = [
 // gpt-image-2 の品質別単価 (1024×1024基準)
 export const GPT_IMAGE_PRICING = { low: 0.006, medium: 0.053, high: 0.211, auto: 0.053 };
 
-// 動画モデル (fal)。base + /text-to-video 等でエンドポイントになる。
-// referenceOnly: true は reference-to-video しか提供されないモデル (Mini)。
+// 動画モデル (fal)。family でAPIの流儀を切り替える:
+//  - "seedance": base + /text-to-video 等。duration=文字列enum(auto,4-15)、音声=generate_audio、
+//    参照画像複数可(reference-to-video)。referenceOnly:true はMini
+//  - "vidu": endpoints直接指定。duration=整数1〜16(autoなし)、音声=audio、参照は1枚のみ、
+//    360pは終了画像と併用不可 (noEndAt360)
+// resolutions/durations はノードUIの選択肢にもなる。
 // 480pの standard/fast は公表値がないため、720p単価×面積比(約0.44)からの推定値。
-// ★ Seedance 2.5 がリリースされたら、ここにエントリを足すだけでよい ★
+// ★ Seedance 2.5 など新モデルは、ここにエントリを足すだけでよい ★
 export const VIDEO_MODELS = [
   {
     value: "standard",
     label: "Seedance 2.0",
+    family: "seedance",
     priceHint: "約$0.30/秒",
     base: "bytedance/seedance-2.0",
+    resolutions: ["480p", "720p"],
+    durations: { auto: true, min: 4, max: 15 },
     perSecond: { "480p": 0.135, "720p": 0.3034 },
   },
   {
     value: "fast",
     label: "Seedance 2.0 Fast",
+    family: "seedance",
     priceHint: "約$0.24/秒",
     base: "bytedance/seedance-2.0/fast",
+    resolutions: ["480p", "720p"],
+    durations: { auto: true, min: 4, max: 15 },
     perSecond: { "480p": 0.108, "720p": 0.2419 },
   },
   {
     value: "mini",
     label: "Seedance 2.0 Mini",
+    family: "seedance",
     priceHint: "約$0.15/秒",
     base: "bytedance/seedance-2.0/mini",
     referenceOnly: true,
+    resolutions: ["480p", "720p"],
+    durations: { auto: true, min: 4, max: 15 },
     perSecond: { "480p": 0.0721, "720p": 0.1547 },
+  },
+  {
+    value: "vidu-q3",
+    label: "Vidu Q3",
+    family: "vidu",
+    priceHint: "$0.07〜0.15/秒",
+    endpoints: {
+      t2v: "fal-ai/vidu/q3/text-to-video",
+      i2v: "fal-ai/vidu/q3/image-to-video",
+    },
+    resolutions: ["360p", "540p", "720p", "1080p"],
+    durations: { auto: false, min: 1, max: 16, default: 5 },
+    aspects: ["16:9", "9:16", "4:3", "3:4", "1:1"],
+    noEndAt360: true,
+    perSecond: { "360p": 0.07, "540p": 0.07, "720p": 0.154, "1080p": 0.154 },
+  },
+  {
+    value: "vidu-q3-turbo",
+    label: "Vidu Q3 Turbo",
+    family: "vidu",
+    priceHint: "$0.035〜0.08/秒",
+    endpoints: {
+      t2v: "fal-ai/vidu/q3/text-to-video/turbo",
+      i2v: "fal-ai/vidu/q3/image-to-video/turbo",
+    },
+    resolutions: ["360p", "540p", "720p", "1080p"],
+    durations: { auto: false, min: 1, max: 16, default: 5 },
+    aspects: ["16:9", "9:16", "4:3", "3:4", "1:1"],
+    noEndAt360: true,
+    perSecond: { "360p": 0.035, "540p": 0.035, "720p": 0.077, "1080p": 0.077 },
   },
 ];
 

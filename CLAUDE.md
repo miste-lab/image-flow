@@ -70,12 +70,20 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
     結果は data.videoUrls (配列。旧 videoUrl からは読み替え)
   - 生成した動画は履歴DBにも取り込む (db.js addVideoHistory。動画本体をdataURL保存+
     先頭フレームをサムネイル化、kind:"video")。falのURL期限切れ対策
-  - モデル切替: standard (約$0.30/秒) / fast (約$0.24/秒) / mini (約$0.15/秒)。単価は720p時
-  - エンドポイントの振り分け: mini は reference-to-video のみ提供なので常にそれを使う。
-    standard/fast は画像0枚→text-to-video、1枚or終了画像あり→image-to-video、
-    2枚以上→reference-to-video (最大9枚)
-  - パラメータ: 解像度480p/720p、長さ 自動/4〜15秒、比率 (画像入力時は送らない・画像優先)、
-    音声生成ON/OFF (generate_audio。音声の有無で料金は変わらない)
+  - モデル切替: Seedance 2.0 standard (約$0.30/秒) / fast (約$0.24/秒) / mini (約$0.15/秒) /
+    Vidu Q3 ($0.07/秒・720p以上は×2.2) / Vidu Q3 Turbo ($0.035/秒・720p以上は×2.2)
+  - モデルは family でAPIの流儀が分かれる (fal.js generateVideo / pricing.js VIDEO_MODELS):
+    - **seedance**: duration=文字列enum(自動/4〜15秒)、音声=generate_audio、参照画像複数可。
+      振り分け: mini は常にreference-to-video。standard/fast は画像0枚→t2v、
+      1枚or開始画像→i2v (+end_image_url)、参照2枚以上→reference-to-video (最大9枚)
+    - **vidu**: fal-ai/vidu/q3/{text,image}-to-video (+Turboは末尾/turbo)。
+      duration=整数1〜16秒(自動なし・既定5)、音声=audio、解像度360p/540p/720p/1080p、
+      参照画像は1枚のみ (2枚以上はエラーで案内)、**360pはend_image_url併用不可**
+  - 解像度・長さの選択肢はモデル定義 (resolutions/durations) からUIに反映。
+    モデル切替時に無効な値は自動で丸める (表示のみ。dataは書き換えない)
+  - **ループトグル**: ONにすると開始画像を終了フレームにも使い、ループ動画になる
+    (終了画像が接続済みならそちら優先。開始画像の接続が必要)
+  - 比率は画像入力時は送らない (画像優先)。viduはautoなし・モデル定義のenum内のみ送る
   - キューのステータスは IN_QUEUE=「順番待ち (n番目)」/ IN_PROGRESS=「生成中…」で表示し分け
     (fal.js queueStatusLabel)。経過時間も表示
   - コストが画像より高い旨の注記をノード内に常時表示
@@ -261,3 +269,14 @@ Claude.aiのチャットで設計〜v0.2まで開発し、ここ(Claude Code)に
   IMAGE_MODELS / VIDEO_MODELS / UPSCALE_MODELS に一元化。
   Seedance 2.5 など新モデルは配列に1エントリ足すだけで反映される構造にした
 - reference-to-video は既存実装でカバー済み (参照画像2枚以上で自動的に使われる) を確認
+
+### 2026-07-09 (9回目): Vidu Q3 / Q3 Turbo 追加とループ動画
+- 動画モデルに Vidu Q3 と Q3 Turbo を追加 (fal-ai/vidu/q3/...、Turboは末尾/turbo)。
+  モデル定義に family ("seedance"/"vidu") を導入し、fal.js の generateVideo
+  (旧generateVideoSeedance) がAPIの流儀差 (duration型・音声パラメータ名・振り分け) を吸収
+- 解像度/長さの選択肢をモデル定義駆動に (vidu: 360p〜1080p・1〜16秒)。
+  切替時に無効値は表示上で丸める
+- ループトグル追加 (開始画像を終了フレームに再利用)。
+  viduの「360p+終了画像は不可」はエラーメッセージで案内
+- コスト表: Vidu Q3 360/540p $0.07/秒・720/1080p $0.154/秒、Turboは半額
+- Seedream 5.0 Pro は8回目で追加済み (今回の依頼と重複)

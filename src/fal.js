@@ -117,8 +117,9 @@ export async function generateImagesSeedream({ model = "seedream-lite", prompt, 
 
 // model / prompt / images / resolution / duration / aspectRatio / audio → 動画URL。
 // 進捗は onStatus で通知される
-// images = 参照画像 (雰囲気やキャラを参照)。startImage/endImage = 最初/最後のフレーム指定
-export async function generateVideoSeedance({
+// images = 参照画像 (雰囲気やキャラを参照)。startImage/endImage = 最初/最後のフレーム指定。
+// モデルの family (seedance / vidu) ごとにAPIの流儀を吸収する
+export async function generateVideo({
   model = "standard",
   prompt,
   images = [],
@@ -134,45 +135,78 @@ export async function generateVideoSeedance({
     throw new Error("プロンプトが空です。ノード内の入力欄に書くか、プロンプトノードを接続してください。");
   }
   if (endImage && !startImage) {
-    throw new Error("終了画像を使うには開始画像もつないでください。");
+    throw new Error("終了画像を使うには開始画像もつないでください (ループは開始画像だけでOK)。");
   }
   if (startImage && images.length > 0) {
     throw new Error("開始画像と参照画像は同時に使えません。どちらか一方をつないでください。");
   }
   const def = VIDEO_MODELS.find((m) => m.value === model) ?? VIDEO_MODELS[0];
-  if (endImage && def.referenceOnly) {
-    throw new Error(`${def.label} は終了画像に対応していません。standard か fast を選んでください。`);
-  }
 
-  const hasAnyImage = !!startImage || images.length > 0;
-  const input = { prompt, resolution, generate_audio: audio };
-  if (duration && duration !== "auto") input.duration = String(duration);
-  // 画像入力があるときは画像の比率が優先されるので aspect_ratio は送らない
-  if (aspectRatio && aspectRatio !== "auto" && !hasAnyImage) {
-    input.aspect_ratio = aspectRatio;
-  }
-
-  // referenceOnly(Mini)は常に reference-to-video。他は入力に応じて振り分ける
   let endpoint;
-  if (def.referenceOnly) {
-    endpoint = `${def.base}/reference-to-video`;
-    const refs = startImage ? [startImage] : images;
-    if (refs.length > 0) input.image_urls = refs.slice(0, 9);
-  } else {
-    const base = def.base;
-    if (startImage) {
-      // 開始(+終了)フレーム指定 → image-to-video
-      endpoint = `${base}/image-to-video`;
-      input.image_url = startImage;
+  let input;
+
+  if (def.family === "vidu") {
+    /* ---- Vidu Q3 / Q3 Turbo ---- */
+    if (images.length > 1) {
+      throw new Error(`${def.label} は参照画像を1枚しか使えません。複数の参照はSeedanceを選んでください。`);
+    }
+    if (endImage && def.noEndAt360 && resolution === "360p") {
+      throw new Error("360pでは終了画像(ループ含む)を使えません。540p以上を選んでください。");
+    }
+    input = {
+      prompt,
+      resolution,
+      audio,
+      duration:
+        duration === "auto"
+          ? def.durations.default ?? 5
+          : Math.min(def.durations.max, Math.max(def.durations.min, Number(duration) || 5)),
+    };
+    const start = startImage || images[0] || null;
+    if (start) {
+      endpoint = def.endpoints.i2v;
+      input.image_url = start;
       if (endImage) input.end_image_url = endImage;
-    } else if (images.length === 0) {
-      endpoint = `${base}/text-to-video`;
-    } else if (images.length === 1) {
-      endpoint = `${base}/image-to-video`;
-      input.image_url = images[0];
     } else {
-      endpoint = `${base}/reference-to-video`;
-      input.image_urls = images.slice(0, 9);
+      endpoint = def.endpoints.t2v;
+      if (aspectRatio !== "auto" && def.aspects?.includes(aspectRatio)) {
+        input.aspect_ratio = aspectRatio;
+      }
+    }
+  } else {
+    /* ---- Seedance 2.0 (standard / fast / mini) ---- */
+    if (endImage && def.referenceOnly) {
+      throw new Error(`${def.label} は終了画像に対応していません。standard か fast を選んでください。`);
+    }
+    const hasAnyImage = !!startImage || images.length > 0;
+    input = { prompt, resolution, generate_audio: audio };
+    if (duration && duration !== "auto") input.duration = String(duration);
+    // 画像入力があるときは画像の比率が優先されるので aspect_ratio は送らない
+    if (aspectRatio && aspectRatio !== "auto" && !hasAnyImage) {
+      input.aspect_ratio = aspectRatio;
+    }
+
+    // referenceOnly(Mini)は常に reference-to-video。他は入力に応じて振り分ける
+    if (def.referenceOnly) {
+      endpoint = `${def.base}/reference-to-video`;
+      const refs = startImage ? [startImage] : images;
+      if (refs.length > 0) input.image_urls = refs.slice(0, 9);
+    } else {
+      const base = def.base;
+      if (startImage) {
+        // 開始(+終了)フレーム指定 → image-to-video
+        endpoint = `${base}/image-to-video`;
+        input.image_url = startImage;
+        if (endImage) input.end_image_url = endImage;
+      } else if (images.length === 0) {
+        endpoint = `${base}/text-to-video`;
+      } else if (images.length === 1) {
+        endpoint = `${base}/image-to-video`;
+        input.image_url = images[0];
+      } else {
+        endpoint = `${base}/reference-to-video`;
+        input.image_urls = images.slice(0, 9);
+      }
     }
   }
 

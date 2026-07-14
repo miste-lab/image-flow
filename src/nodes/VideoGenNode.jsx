@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, useReactFlow, useStore } from "@xyflow/react";
 import ModelSelect from "./ModelSelect.jsx";
-import { generateVideoSeedance, queueStatusLabel } from "../fal.js";
+import { generateVideo, queueStatusLabel } from "../fal.js";
 import { addVideoHistory } from "../db.js";
 import { makeDefaults, makeId, INIT_SIZE } from "../defaults.js";
 import { VIDEO_MODELS, estimateVideoUsd, useUsdJpy, fmtJpy, VIDEO_AUTO_DURATION } from "../pricing.js";
@@ -13,18 +13,17 @@ const MODEL_OPTIONS = VIDEO_MODELS.map((m) => ({
   price: m.priceHint,
 }));
 
-const RESOLUTIONS = [
-  { value: "480p", label: "480p" },
-  { value: "720p", label: "720p" },
-];
-
-// 長さ: 自動 + 4〜15秒
-const DURATIONS = [
-  { value: "auto", label: "長さ: 自動" },
-  ...Array.from({ length: 12 }, (_, i) => ({ value: String(i + 4), label: `${i + 4}秒` })),
-];
-
 const ASPECTS = ["auto", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+
+// モデル定義から解像度・長さの選択肢を組み立てる
+const resolutionOptions = (def) => def.resolutions ?? ["480p", "720p"];
+const durationOptions = (def) => {
+  const d = def.durations ?? { auto: true, min: 4, max: 15 };
+  const list = [];
+  if (d.auto) list.push({ value: "auto", label: "長さ: 自動" });
+  for (let s = d.min; s <= d.max; s++) list.push({ value: String(s), label: `${s}秒` });
+  return list;
+};
 
 const MAX_COUNT = 3;
 
@@ -46,17 +45,21 @@ export default function VideoGenNode({ id, data }) {
   );
 
   const model = data.model ?? "standard";
+  const def = VIDEO_MODELS.find((m) => m.value === model) ?? VIDEO_MODELS[0];
   const count = Math.min(data.count ?? 1, MAX_COUNT);
   const videoUrls = data.videoUrls ?? (data.videoUrl ? [data.videoUrl] : []);
 
+  // モデルを切り替えたとき、そのモデルにない解像度/長さは有効な値へ丸める
+  const resList = resolutionOptions(def);
+  const resolution = resList.includes(data.resolution) ? data.resolution : (resList.includes("720p") ? "720p" : resList[0]);
+  const durList = durationOptions(def);
+  const duration = durList.some((d) => d.value === (data.duration ?? "auto"))
+    ? (data.duration ?? "auto")
+    : String(def.durations?.default ?? durList[0].value);
+
   // 実行前のコスト概算 (設定が変わるたびに再計算)
   const rate = useUsdJpy();
-  const estUsd = estimateVideoUsd({
-    model,
-    resolution: data.resolution ?? "720p",
-    duration: data.duration ?? "auto",
-    count,
-  });
+  const estUsd = estimateVideoUsd({ model, resolution, duration, count });
 
   // 生成中の経過時間表示 (0.5秒刻みで更新)
   const startedAtRef = useRef(null);
@@ -176,17 +179,20 @@ export default function VideoGenNode({ id, data }) {
       updateNodeData(id, { status: head + label });
     };
 
+    // ループON: 終了画像が未接続なら開始画像を終了フレームにも使う
+    const effectiveEnd = endImage ?? (data.loop && startImage ? startImage : null);
+
     try {
       const urls = await Promise.all(
         Array.from({ length: count }, (_, i) =>
-          generateVideoSeedance({
+          generateVideo({
             model,
             prompt,
             images,
             startImage,
-            endImage,
-            resolution: data.resolution ?? "720p",
-            duration: data.duration ?? "auto",
+            endImage: effectiveEnd,
+            resolution,
+            duration,
             aspectRatio: data.aspect ?? "auto",
             audio: data.audio ?? true,
             onStatus: (st) => {
@@ -207,7 +213,7 @@ export default function VideoGenNode({ id, data }) {
     } catch (err) {
       updateNodeData(id, { loading: false, status: null, error: err.message });
     }
-  }, [id, model, count, data.uid, data.resolution, data.duration, data.aspect, data.audio, collectInputs, ensureJobGrid, updateNodeData]);
+  }, [id, model, count, resolution, duration, data.uid, data.aspect, data.audio, data.loop, collectInputs, ensureJobGrid, updateNodeData]);
 
   // 動画をmp4としてダウンロード
   const save = async (url, i) => {
@@ -331,18 +337,19 @@ export default function VideoGenNode({ id, data }) {
 
       <div className="param-row nodrag">
         <select
-          value={data.resolution ?? "720p"}
+          value={resolution}
           onChange={(e) => updateNodeData(id, { resolution: e.target.value })}
+          title={def.noEndAt360 ? "360pは終了画像・ループと併用できません" : undefined}
         >
-          {RESOLUTIONS.map((r) => (
-            <option key={r.value} value={r.value}>解像度: {r.label}</option>
+          {resList.map((r) => (
+            <option key={r} value={r}>解像度: {r}</option>
           ))}
         </select>
         <select
-          value={data.duration ?? "auto"}
+          value={duration}
           onChange={(e) => updateNodeData(id, { duration: e.target.value })}
         >
-          {DURATIONS.map((d) => (
+          {durList.map((d) => (
             <option key={d.value} value={d.value}>{d.label}</option>
           ))}
         </select>
@@ -365,6 +372,17 @@ export default function VideoGenNode({ id, data }) {
             onChange={(e) => updateNodeData(id, { audio: e.target.checked })}
           />
           音声
+        </label>
+        <label
+          className="audio-toggle"
+          title="開始画像を終了フレームにも使い、最初と最後がつながるループ動画にする (開始画像の接続が必要)"
+        >
+          <input
+            type="checkbox"
+            checked={data.loop ?? false}
+            onChange={(e) => updateNodeData(id, { loop: e.target.checked })}
+          />
+          ループ
         </label>
       </div>
 
